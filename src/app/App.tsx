@@ -73,8 +73,8 @@ function BounceViz({
       <line x1={gx1} y1={gy1} x2={gx2} y2={gy2} stroke={fg} strokeWidth={0.5} strokeOpacity={0.06} />
       <line x1={r1x1} y1={r1y1} x2={r1x2} y2={r1y2} stroke={fg} strokeWidth={lineW} strokeOpacity={0.28} strokeLinecap="round" style={{ transition: 'stroke-width 0.15s ease' }} />
       <line x1={r2x1} y1={r2y1} x2={r2x2} y2={r2y2} stroke={fg} strokeWidth={lineW} strokeOpacity={0.28} strokeLinecap="round" style={{ transition: 'stroke-width 0.15s ease' }} />
-      <g transform={`translate(${cx}, ${cy})`}>
-        <g transform={`scale(${scale})`} style={{ transition: scaleTransition }}>
+      <g transform={`translate(${cx}, ${cy})`} data-testid="bounce-translate-wrapper">
+        <g transform={`scale(${scale})`} style={{ transition: scaleTransition }} data-testid="bounce-scale-wrapper">
           <circle r={baseR} fill={fg} />
         </g>
       </g>
@@ -187,15 +187,17 @@ function SweepViz({
 // ─── UI Helpers ───────────────────────────────────────────────────────────────
 
 function IconBtn({
-  children, onClick, title, tp, ts, hov,
+  children, onClick, title, ariaLabel, testId, tp, ts, hov,
 }: {
-  children: React.ReactNode; onClick: () => void; title?: string;
+  children: React.ReactNode; onClick: () => void; title?: string; ariaLabel?: string; testId?: string;
   tp: string; ts: string; hov: string;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
+      aria-label={ariaLabel ?? title}
+      data-testid={testId}
       style={{ width: 28, height: 28, color: ts, background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}
       onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = hov; (e.currentTarget as HTMLElement).style.color = tp; }}
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = ts; }}
@@ -216,7 +218,7 @@ function SectionLabel({ text, ts }: { text: string; ts: string }) {
 function SegCtrl({
   opts, value, onChange, tp, ts, bg, border,
 }: {
-  opts: { id: string; label: string }[];
+  opts: { id: string; label: string; testId?: string }[];
   value: string; onChange: (v: string) => void;
   tp: string; ts: string; bg: string; border: string;
 }) {
@@ -226,6 +228,8 @@ function SegCtrl({
         <button
           key={o.id}
           onClick={() => onChange(o.id)}
+          data-testid={o.testId}
+          aria-pressed={value === o.id}
           style={{
             flex: 1, padding: '7px 4px', fontSize: '0.72rem', border: 'none', cursor: 'pointer',
             background: value === o.id ? tp : 'transparent',
@@ -242,16 +246,20 @@ function SegCtrl({
 }
 
 function ToggleRow({
-  label, value, onChange, tp, ts, bg,
+  label, value, onChange, tp, ts, bg, testId, ariaLabel,
 }: {
   label: string; value: boolean; onChange: (v: boolean) => void;
-  tp: string; ts: string; bg: string;
+  tp: string; ts: string; bg: string; testId?: string; ariaLabel?: string;
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <span style={{ color: ts, fontSize: '0.73rem' }}>{label}</span>
       <button
         onClick={() => onChange(!value)}
+        data-testid={testId}
+        role="switch"
+        aria-checked={value}
+        aria-label={ariaLabel ?? label}
         style={{
           position: 'relative', display: 'flex', alignItems: 'center',
           width: 36, height: 20, borderRadius: 10, border: 'none', cursor: 'pointer',
@@ -480,7 +488,7 @@ export default function App() {
 
           {/* Count display */}
           {showCount && !isReady && (
-            <div style={{
+            <div data-testid="count-display" style={{
               position: 'absolute', top: 32, left: '50%', transform: 'translateX(-50%)',
               display: 'flex', alignItems: 'center', gap: 14, zIndex: 10,
             }}>
@@ -503,7 +511,7 @@ export default function App() {
           )}
 
           {/* Visualization */}
-          <div style={{
+          <div data-testid="metronome-visual-root" style={{
             position: 'absolute', inset: 0,
             animation: isReady ? 'breathe 3.6s ease-in-out infinite' : 'none',
           }}>
@@ -523,6 +531,8 @@ export default function App() {
               <button
                 onClick={togglePlay}
                 title="Start (Space)"
+                aria-label="Start metronome"
+                data-testid="start-button"
                 style={{
                   width: 96, height: 96, borderRadius: '50%', border: 'none', cursor: 'pointer',
                   background: preset.fg, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -557,6 +567,8 @@ export default function App() {
               </span>
               <button
                 onClick={togglePlay}
+                aria-label={status === 'Playing' ? 'Pause metronome' : 'Play metronome'}
+                data-testid="play-pause-button"
                 style={{
                   width: 50, height: 50, borderRadius: '50%', border: 'none', cursor: 'pointer',
                   background: preset.fg, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -580,6 +592,8 @@ export default function App() {
             <button
               onClick={() => setPanelOpen(true)}
               title="Open panel (C)"
+              aria-label="Expand controls"
+              data-testid="panel-expand-handle"
               style={{
                 position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
                 width: 16, height: 52, background: panelBg, borderLeft: `1px solid ${pBorder}`,
@@ -596,7 +610,7 @@ export default function App() {
         </div>
 
         {/* ── Control panel ────────────────────────────────────────────── */}
-        <div style={{
+        <div data-testid="control-panel" style={{
           flexShrink: 0, overflow: 'hidden',
           width: panelOpen ? 268 : 0,
           background: panelBg,
@@ -627,7 +641,10 @@ export default function App() {
                   {fullscreenSupported && (
                     <IconBtn
                       onClick={toggleFullscreen}
-                      title="Fullscreen (F)" tp={tp} ts={ts} hov={hov}
+                      title="Fullscreen (F)"
+                      ariaLabel={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                      testId="fullscreen-button"
+                      tp={tp} ts={ts} hov={hov}
                     >
                       {isFullscreen
                         ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>
@@ -635,7 +652,13 @@ export default function App() {
                       }
                     </IconBtn>
                   )}
-                  <IconBtn onClick={() => setPanelOpen(false)} title="Collapse (C)" tp={tp} ts={ts} hov={hov}>
+                  <IconBtn
+                    onClick={() => setPanelOpen(false)}
+                    title="Collapse (C)"
+                    ariaLabel="Collapse controls"
+                    testId="panel-collapse-button"
+                    tp={tp} ts={ts} hov={hov}
+                  >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="9 18 15 12 9 6" />
                     </svg>
@@ -648,6 +671,7 @@ export default function App() {
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div>
                     <div
+                      data-testid="bpm-display"
                       style={{
                         color: tp, fontFamily: "'DM Mono', monospace",
                         fontSize: '3.5rem', fontWeight: 700, lineHeight: 1,
@@ -699,7 +723,10 @@ export default function App() {
               <div style={{ padding: '12px 16px', borderBottom: `1px solid ${pBorder}`, flexShrink: 0 }}>
                 <SectionLabel text="COUNT MODE" ts={ts} />
                 <SegCtrl
-                  opts={[{ id: '4/4', label: '4 / 4' }, { id: '8count', label: '8 Count' }]}
+                  opts={[
+                    { id: '4/4', label: '4 / 4', testId: 'count-mode-4-4' },
+                    { id: '8count', label: '8 Count', testId: 'count-mode-8count' },
+                  ]}
                   value={countMode} onChange={v => setCountMode(v as CountMode)}
                   tp={tp} ts={ts} bg={panelBg} border={pBorder}
                 />
@@ -737,7 +764,11 @@ export default function App() {
                   tp={tp} ts={ts} bg={panelBg} border={pBorder}
                 />
                 <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 9 }}>
-                  <ToggleRow label="First beat emphasis" value={firstBeatEmphasis} onChange={setFirstBeatEmphasis} tp={tp} ts={ts} bg={panelBg} />
+                  <ToggleRow
+                    label="First beat emphasis" value={firstBeatEmphasis} onChange={setFirstBeatEmphasis}
+                    tp={tp} ts={ts} bg={panelBg}
+                    testId="first-beat-emphasis-toggle" ariaLabel="Toggle first beat emphasis"
+                  />
                   <ToggleRow label="Count numbers" value={showCount} onChange={setShowCount} tp={tp} ts={ts} bg={panelBg} />
                 </div>
               </div>
