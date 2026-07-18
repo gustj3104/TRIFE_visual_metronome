@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { parseTranslate } from './utils';
+import { getComputedTransform, parseMatrixTranslate } from './utils';
 
 async function sampleTranslates(page: import('@playwright/test').Page, count: number, intervalMs: number) {
   const samples: { x: number; y: number }[] = [];
+  const wrapper = page.getByTestId('bounce-translate-wrapper');
   for (let i = 0; i < count; i++) {
-    const t = await page.getByTestId('bounce-translate-wrapper').getAttribute('transform');
-    samples.push(parseTranslate(t));
+    const t = await getComputedTransform(wrapper);
+    samples.push(parseMatrixTranslate(t));
     await page.waitForTimeout(intervalMs);
   }
   return samples;

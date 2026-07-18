@@ -1,188 +1,14 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type VizType = 'Bounce' | 'Swing' | 'Pulse' | 'Sweep';
-type CountMode = '4/4' | '8count';
-type Direction = 'Vertical' | 'Horizontal';
-type Status = 'Ready' | 'Playing' | 'Paused';
-type StartCount = 'Immediately' | '4count' | '8count' | '5678';
-
-interface AnimState {
-  ballPos: number;
-  beat: number;
-  flash: boolean;
-  firstBeat: boolean;
-}
-
-const PRESETS = [
-  { id: 'bw',  name: 'Black / White',    bg: '#0a0a0a', fg: '#ffffff' },
-  { id: 'wb',  name: 'White / Black',    bg: '#f2f2f2', fg: '#0a0a0a' },
-  { id: 'by',  name: 'Black / Yellow',   bg: '#0a0a0a', fg: '#f5d200' },
-  { id: 'nw',  name: 'Navy / White',     bg: '#0c1445', fg: '#ffffff' },
-  { id: 'wdb', name: 'White / Deep Blue',bg: '#f2f2f2', fg: '#0a1f5c' },
-  { id: 'pl',  name: 'Purple / Lime',    bg: '#160c28', fg: '#c8f135' },
-  { id: 'bc',  name: 'Burgundy / Cream', bg: '#3c0810', fg: '#f0e6d3' },
-];
-
-// ─── Visualizations ───────────────────────────────────────────────────────────
-
-// ease-in-out: slow at endpoints, fast in middle (sinusoidal)
-function easeInOut(t: number) {
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-}
-
-function BounceViz({
-  ballPos, direction, fg, flash, firstBeat, firstBeatEmphasis, isReady,
-}: {
-  ballPos: number; direction: Direction; fg: string;
-  flash: boolean; firstBeat: boolean;
-  firstBeatEmphasis: boolean; isReady: boolean;
-}) {
-  const isFB = firstBeat && firstBeatEmphasis;
-  const baseR = 50;
-  const scale = flash ? (isFB ? 1.38 : 1.18) : 1;
-  const lineW = flash ? (isFB ? 4 : 2.5) : 1.5;
-  const SP = 0.17, EP = 0.83;
-
-  let cx: number, cy: number;
-  let gx1: number, gy1: number, gx2: number, gy2: number;
-  let r1x1: number, r1y1: number, r1x2: number, r1y2: number;
-  let r2x1: number, r2y1: number, r2x2: number, r2y2: number;
-
-  if (direction === 'Vertical') {
-    cx = 500;
-    cy = isReady ? 500 : 1000 * (SP + ballPos * (EP - SP));
-    gx1 = 500; gy1 = 1000 * SP; gx2 = 500; gy2 = 1000 * EP;
-    r1x1 = 350; r1y1 = 1000 * SP; r1x2 = 650; r1y2 = 1000 * SP;
-    r2x1 = 350; r2y1 = 1000 * EP; r2x2 = 650; r2y2 = 1000 * EP;
-  } else {
-    cy = 500;
-    cx = isReady ? 500 : 1000 * (SP + ballPos * (EP - SP));
-    gx1 = 1000 * SP; gy1 = 500; gx2 = 1000 * EP; gy2 = 500;
-    r1x1 = 1000 * SP; r1y1 = 350; r1x2 = 1000 * SP; r1y2 = 650;
-    r2x1 = 1000 * EP; r2y1 = 350; r2x2 = 1000 * EP; r2y2 = 650;
-  }
-
-  const scaleTransition = flash
-    ? 'transform 0.06s cubic-bezier(0.34,1.56,0.64,1)'
-    : 'transform 0.18s ease-in';
-
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
-      <line x1={gx1} y1={gy1} x2={gx2} y2={gy2} stroke={fg} strokeWidth={0.5} strokeOpacity={0.06} />
-      <line x1={r1x1} y1={r1y1} x2={r1x2} y2={r1y2} stroke={fg} strokeWidth={lineW} strokeOpacity={0.28} strokeLinecap="round" style={{ transition: 'stroke-width 0.15s ease' }} />
-      <line x1={r2x1} y1={r2y1} x2={r2x2} y2={r2y2} stroke={fg} strokeWidth={lineW} strokeOpacity={0.28} strokeLinecap="round" style={{ transition: 'stroke-width 0.15s ease' }} />
-      <g transform={`translate(${cx}, ${cy})`} data-testid="bounce-translate-wrapper">
-        <g transform={`scale(${scale})`} style={{ transition: scaleTransition }} data-testid="bounce-scale-wrapper">
-          <circle r={baseR} fill={fg} />
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-function PulseViz({
-  ballPos, fg, flash, firstBeat, firstBeatEmphasis, status,
-}: {
-  ballPos: number; fg: string; flash: boolean; firstBeat: boolean;
-  firstBeatEmphasis: boolean; status: Status;
-}) {
-  const isFB = firstBeat && firstBeatEmphasis;
-  const scale = flash ? (isFB ? 1.48 : 1.24) : 1;
-  const playing = status === 'Playing';
-  const eased = easeInOut(ballPos);
-  const scaleTransition = flash
-    ? 'transform 0.07s cubic-bezier(0.34,1.56,0.64,1)'
-    : 'transform 0.2s ease-in';
-
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
-      {playing && (
-        <circle cx={500} cy={500} r={60 + eased * 250} fill="none"
-          stroke={fg} strokeWidth={2.5} strokeOpacity={(1 - eased) * 0.6} />
-      )}
-      {playing && ballPos > 0.4 && (
-        <circle cx={500} cy={500} r={60 + easeInOut((ballPos - 0.4) / 0.6) * 250} fill="none"
-          stroke={fg} strokeWidth={1.5} strokeOpacity={(1 - (ballPos - 0.4) / 0.6) * 0.3} />
-      )}
-      <g transform="translate(500, 500)">
-        <g transform={`scale(${scale})`} style={{ transition: scaleTransition }}>
-          <circle r={55} fill={fg} />
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-function SwingViz({
-  ballPos, fg, flash, firstBeat, firstBeatEmphasis, status,
-}: {
-  ballPos: number; fg: string; flash: boolean; firstBeat: boolean;
-  firstBeatEmphasis: boolean; status: Status;
-}) {
-  const isFB = firstBeat && firstBeatEmphasis;
-  const scale = flash ? (isFB ? 1.35 : 1.18) : 1;
-  const maxAngle = (status === 'Ready') ? 0 : 52 * Math.PI / 180;
-  const easedPos = Math.sin(ballPos * Math.PI - Math.PI / 2);
-  const angle = easedPos * maxAngle;
-
-  const pivotX = 500, pivotY = 130;
-  const armLength = 370;
-  const ballX = pivotX + armLength * Math.sin(angle);
-  const ballY = pivotY + armLength * Math.cos(angle);
-
-  const arcMaxAngle = 52 * Math.PI / 180;
-  const startX = pivotX - armLength * Math.sin(arcMaxAngle);
-  const startY = pivotY + armLength * Math.cos(arcMaxAngle);
-  const endX   = pivotX + armLength * Math.sin(arcMaxAngle);
-  const endY   = pivotY + armLength * Math.cos(arcMaxAngle);
-
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
-      <path d={`M ${startX} ${startY} A ${armLength} ${armLength} 0 0 1 ${endX} ${endY}`}
-        fill="none" stroke={fg} strokeWidth={0.5} strokeOpacity={0.09} />
-      <circle cx={startX} cy={startY} r={7} fill={fg} fillOpacity={0.18} />
-      <circle cx={endX}   cy={endY}   r={7} fill={fg} fillOpacity={0.18} />
-      <circle cx={pivotX} cy={pivotY} r={7} fill={fg} fillOpacity={0.4} />
-      <line x1={pivotX} y1={pivotY} x2={ballX} y2={ballY}
-        stroke={fg} strokeWidth={2} strokeOpacity={0.22} />
-      <g transform={`translate(${ballX}, ${ballY})`}>
-        <g
-          transform={`scale(${scale})`}
-          style={{ transition: flash ? 'transform 0.06s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.18s ease-in' }}
-        >
-          <circle r={52} fill={fg} />
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-function SweepViz({
-  ballPos, fg, flash, firstBeat, firstBeatEmphasis, status,
-}: {
-  ballPos: number; fg: string; flash: boolean; firstBeat: boolean;
-  firstBeatEmphasis: boolean; status: Status;
-}) {
-  const isFB = firstBeat && firstBeatEmphasis;
-  const barW = flash ? (isFB ? 12 : 8) : 5;
-  const x = (status === 'Ready') ? 500 : 120 + ballPos * 760;
-
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
-      <line x1={120} y1={175} x2={120} y2={825} stroke={fg} strokeWidth={1} strokeOpacity={0.15} />
-      <line x1={880} y1={175} x2={880} y2={825} stroke={fg} strokeWidth={1} strokeOpacity={0.15} />
-      <line x1={120} y1={500} x2={880} y2={500} stroke={fg} strokeWidth={0.5} strokeOpacity={0.06} />
-      <rect
-        x={x - barW / 2} y={155}
-        width={barW} height={690}
-        fill={fg} rx={barW / 2}
-        style={{ transition: flash ? 'width 0.07s cubic-bezier(0.34,1.56,0.64,1)' : 'width 0.18s ease-in' }}
-      />
-    </svg>
-  );
-}
+import React, { useCallback, useRef, useState } from 'react';
+import { useFullscreen } from './hooks/useFullscreen';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useMetronomeEngine } from './hooks/useMetronomeEngine';
+import { useReducedMotion } from './hooks/useReducedMotion';
+import type { CountMode, Direction, StartCount, VizType } from './metronome/types';
+import { PRESETS } from './theme/presets';
+import { BounceViz } from './visualizations/BounceViz';
+import { PulseViz } from './visualizations/PulseViz';
+import { SweepViz } from './visualizations/SweepViz';
+import { SwingViz } from './visualizations/SwingViz';
 
 // ─── UI Helpers ───────────────────────────────────────────────────────────────
 
@@ -283,9 +109,6 @@ function ToggleRow({
 
 export default function App() {
   const [isDark, setIsDark] = useState(true);
-  const [status, setStatus] = useState<Status>('Ready');
-  const [bpm, setBpmState] = useState(120);
-  const [countMode, setCountMode] = useState<CountMode>('4/4');
   const [vizType, setVizType] = useState<VizType>('Bounce');
   const [direction, setDirection] = useState<Direction>('Vertical');
   const [firstBeatEmphasis, setFirstBeatEmphasis] = useState(true);
@@ -293,41 +116,22 @@ export default function App() {
   const [presetId, setPresetId] = useState('bw');
   const [startCount, setStartCount] = useState<StartCount>('Immediately');
   const [panelOpen, setPanelOpen] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [fullscreenSupported, setFullscreenSupported] = useState(true);
 
-  const toggleFullscreen = useCallback(() => {
-    try {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      } else {
-        document.documentElement.requestFullscreen().catch(() => {
-          setFullscreenSupported(false);
-        });
-      }
-    } catch {
-      setFullscreenSupported(false);
-    }
-  }, []);
-  const [animState, setAnimState] = useState<AnimState>({ ballPos: 0, beat: 0, flash: false, firstBeat: false });
-
-  // Refs for animation (never trigger re-renders)
-  const rafRef = useRef<number>(0);
-  const statusRef = useRef<Status>('Ready');
-  const bpmRef = useRef(120);
-  const countModeRef = useRef<CountMode>('4/4');
-  const beatIndexRef = useRef(0);
-  const lastBeatTimeRef = useRef(0);
-  const goingForwardRef = useRef(true);
-  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const engine = useMetronomeEngine(120, '4/4');
+  const { isFullscreen, fullscreenSupported, toggleFullscreen } = useFullscreen();
+  const reducedMotion = useReducedMotion();
   const tapTimesRef = useRef<number[]>([]);
 
-  useEffect(() => { statusRef.current = status; }, [status]);
-  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
-  useEffect(() => { countModeRef.current = countMode; }, [countMode]);
+  useKeyboardShortcuts({
+    togglePlay: engine.togglePlay,
+    adjustBpm: engine.adjustBpm,
+    toggleFullscreen,
+    togglePanel: () => setPanelOpen(p => !p),
+  });
 
-  const totalBeats = countMode === '4/4' ? 4 : 8;
+  const totalBeats = engine.countMode === '4/4' ? 4 : 8;
   const preset = PRESETS.find(p => p.id === presetId) ?? PRESETS[0];
+  const isReady = engine.status === 'Ready';
 
   // Panel theme
   const panelBg  = isDark ? '#111111' : '#f0f0f0';
@@ -336,127 +140,38 @@ export default function App() {
   const ts       = isDark ? '#666666' : '#909090';
   const hov      = isDark ? '#1c1c1c' : '#e2e2e2';
 
-  // ── Animation loop ─────────────────────────────────────────────────────────
-  const animate = useCallback((timestamp: number) => {
-    if (statusRef.current !== 'Playing') return;
-
-    const beatDuration = 60000 / bpmRef.current;
-    if (lastBeatTimeRef.current === 0) lastBeatTimeRef.current = timestamp;
-
-    const elapsed = timestamp - lastBeatTimeRef.current;
-    const progress = elapsed / beatDuration;
-
-    if (progress >= 1) {
-      lastBeatTimeRef.current = lastBeatTimeRef.current + beatDuration;
-      const total = countModeRef.current === '4/4' ? 4 : 8;
-      beatIndexRef.current = (beatIndexRef.current + 1) % total;
-      goingForwardRef.current = !goingForwardRef.current;
-
-      const nb = beatIndexRef.current;
-      const isFirst = nb === 0;
-
-      setAnimState({ ballPos: goingForwardRef.current ? 0 : 1, beat: nb, flash: true, firstBeat: isFirst });
-
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      flashTimerRef.current = setTimeout(
-        () => setAnimState(prev => ({ ...prev, flash: false, firstBeat: false })),
-        isFirst ? 170 : 105,
-      );
-    } else {
-      const ballPos = goingForwardRef.current ? progress : 1 - progress;
-      setAnimState(prev => ({ ...prev, ballPos, beat: beatIndexRef.current }));
-    }
-
-    rafRef.current = requestAnimationFrame(animate);
-  }, []);
-
-  const startPlay = useCallback(() => {
-    beatIndexRef.current = 0;
-    goingForwardRef.current = true;
-    lastBeatTimeRef.current = 0;
-    statusRef.current = 'Playing';
-    setStatus('Playing');
-    setAnimState({ ballPos: 0, beat: 0, flash: false, firstBeat: false });
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(animate);
-  }, [animate]);
-
-  const pausePlay = useCallback(() => {
-    statusRef.current = 'Paused';
-    setStatus('Paused');
-    cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  const togglePlay = useCallback(() => {
-    if (statusRef.current === 'Playing') pausePlay(); else startPlay();
-  }, [startPlay, pausePlay]);
-
-  // Smooth BPM change preserving beat position
-  const setBpm = useCallback((v: number) => {
-    const next = Math.max(40, Math.min(240, Math.round(v)));
-    if (statusRef.current === 'Playing' && lastBeatTimeRef.current > 0) {
-      const now = performance.now();
-      const oldDur = 60000 / bpmRef.current;
-      const newDur = 60000 / next;
-      const frac = Math.min((now - lastBeatTimeRef.current) / oldDur, 1);
-      lastBeatTimeRef.current = now - frac * newDur;
-    }
-    bpmRef.current = next;
-    setBpmState(next);
-  }, []);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT') return;
-      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-      else if (e.code === 'ArrowRight') setBpm(bpmRef.current + (e.shiftKey ? 5 : 1));
-      else if (e.code === 'ArrowLeft')  setBpm(bpmRef.current - (e.shiftKey ? 5 : 1));
-      else if (e.code === 'KeyF') toggleFullscreen();
-      else if (e.code === 'KeyC') setPanelOpen(p => !p);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [togglePlay, setBpm]);
-
-  useEffect(() => {
-    const onFS = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', onFS);
-    return () => document.removeEventListener('fullscreenchange', onFS);
-  }, []);
-
-  useEffect(() => () => {
-    cancelAnimationFrame(rafRef.current);
-    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-  }, []);
-
   // Tap tempo
-  const handleTap = () => {
+  const handleTap = useCallback(() => {
     const now = Date.now();
     const taps = [...tapTimesRef.current.slice(-7), now];
     tapTimesRef.current = taps;
     if (taps.length >= 2) {
       const intervals = taps.slice(1).map((t, i) => t - taps[i]);
-      setBpm(Math.round(60000 / (intervals.reduce((a, b) => a + b) / intervals.length)));
+      engine.setBpm(Math.round(60000 / (intervals.reduce((a, b) => a + b) / intervals.length)));
     }
-  };
+  }, [engine]);
 
   const handleBpmWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    setBpm(bpmRef.current - Math.sign(e.deltaY));
+    engine.adjustBpm(-Math.sign(e.deltaY));
   };
 
-  // Render visualization
+  // Hover-scale interactions are minimized (not removed) under reduced motion.
+  const hoverBoost = reducedMotion ? 0.3 : 1;
+
   const vizCommonProps = {
-    ballPos: animState.ballPos, fg: preset.fg,
-    flash: animState.flash, firstBeat: animState.firstBeat,
-    firstBeatEmphasis, status,
+    fg: preset.fg,
+    status: engine.status,
+    bpm: engine.bpm,
+    currentBeat: engine.currentBeat,
+    isFirstBeat: engine.isFirstBeat,
+    firstBeatEmphasis,
+    getElapsedBeats: engine.getElapsedBeats,
   };
-  const isReady = status === 'Ready';
 
   const renderViz = () => {
     switch (vizType) {
-      case 'Bounce': return <BounceViz {...vizCommonProps} direction={direction} isReady={isReady} />;
+      case 'Bounce': return <BounceViz {...vizCommonProps} direction={direction} reducedMotion={reducedMotion} />;
       case 'Pulse':  return <PulseViz  {...vizCommonProps} />;
       case 'Swing':  return <SwingViz  {...vizCommonProps} />;
       case 'Sweep':  return <SweepViz  {...vizCommonProps} />;
@@ -471,10 +186,6 @@ export default function App() {
         @keyframes breathe {
           0%, 100% { opacity: 0.55; }
           50% { opacity: 0.82; }
-        }
-        @keyframes readyPulse {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0); }
-          50% { transform: scale(1.04); box-shadow: 0 0 32px 8px rgba(255,255,255,0.08); }
         }
       `}</style>
 
@@ -496,9 +207,9 @@ export default function App() {
                 <span key={i} style={{
                   color: preset.fg,
                   fontFamily: "'DM Mono', monospace",
-                  fontSize: i === animState.beat ? '2.2rem' : '1rem',
-                  fontWeight: i === animState.beat ? 700 : 400,
-                  opacity: i === animState.beat ? 1 : 0.18,
+                  fontSize: i === engine.currentBeat ? '2.2rem' : '1rem',
+                  fontWeight: i === engine.currentBeat ? 700 : 400,
+                  opacity: i === engine.currentBeat ? 1 : 0.18,
                   transition: 'all 0.07s ease',
                   lineHeight: 1,
                   minWidth: '1.5ch',
@@ -513,7 +224,7 @@ export default function App() {
           {/* Visualization */}
           <div data-testid="metronome-visual-root" style={{
             position: 'absolute', inset: 0,
-            animation: isReady ? 'breathe 3.6s ease-in-out infinite' : 'none',
+            animation: (isReady && !reducedMotion) ? 'breathe 3.6s ease-in-out infinite' : 'none',
           }}>
             {renderViz()}
           </div>
@@ -526,10 +237,10 @@ export default function App() {
               gap: 28, zIndex: 10,
             }}>
               <div style={{ color: preset.fg, opacity: 0.22, fontFamily: "'DM Mono', monospace", fontSize: '0.8rem', letterSpacing: '0.16em' }}>
-                {bpm} BPM
+                {engine.bpm} BPM
               </div>
               <button
-                onClick={togglePlay}
+                onClick={engine.togglePlay}
                 title="Start (Space)"
                 aria-label="Start metronome"
                 data-testid="start-button"
@@ -539,15 +250,15 @@ export default function App() {
                   transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                 }}
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.transform = 'scale(1.07)';
+                  (e.currentTarget as HTMLElement).style.transform = `scale(${1 + 0.07 * hoverBoost})`;
                   (e.currentTarget as HTMLElement).style.boxShadow = `0 16px 52px ${preset.fg}55`;
                 }}
                 onMouseLeave={e => {
                   (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
                   (e.currentTarget as HTMLElement).style.boxShadow = 'none';
                 }}
-                onMouseDown={e => (e.currentTarget as HTMLElement).style.transform = 'scale(0.95)'}
-                onMouseUp={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.07)'}
+                onMouseDown={e => (e.currentTarget as HTMLElement).style.transform = `scale(${1 - 0.05 * hoverBoost})`}
+                onMouseUp={e => (e.currentTarget as HTMLElement).style.transform = `scale(${1 + 0.07 * hoverBoost})`}
               >
                 <svg width="34" height="34" viewBox="0 0 24 24" fill={preset.bg}>
                   <polygon points="7,3 21,12 7,21" />
@@ -563,23 +274,23 @@ export default function App() {
           {!isReady && (
             <div style={{ position: 'absolute', bottom: 24, right: 24, zIndex: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
               <span style={{ color: preset.fg, opacity: 0.22, fontFamily: "'DM Mono', monospace", fontSize: '0.7rem' }}>
-                {bpm} BPM
+                {engine.bpm} BPM
               </span>
               <button
-                onClick={togglePlay}
-                aria-label={status === 'Playing' ? 'Pause metronome' : 'Play metronome'}
+                onClick={engine.togglePlay}
+                aria-label={engine.status === 'Playing' ? 'Pause metronome' : 'Play metronome'}
                 data-testid="play-pause-button"
                 style={{
                   width: 50, height: 50, borderRadius: '50%', border: 'none', cursor: 'pointer',
                   background: preset.fg, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'transform 0.15s ease',
                 }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.07)'}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = `scale(${1 + 0.07 * hoverBoost})`}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
-                onMouseDown={e => (e.currentTarget as HTMLElement).style.transform = 'scale(0.93)'}
-                onMouseUp={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.07)'}
+                onMouseDown={e => (e.currentTarget as HTMLElement).style.transform = `scale(${1 - 0.07 * hoverBoost})`}
+                onMouseUp={e => (e.currentTarget as HTMLElement).style.transform = `scale(${1 + 0.07 * hoverBoost})`}
               >
-                {status === 'Playing'
+                {engine.status === 'Playing'
                   ? <svg width="18" height="18" viewBox="0 0 24 24" fill={preset.bg}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
                   : <svg width="18" height="18" viewBox="0 0 24 24" fill={preset.bg}><polygon points="7,3 21,12 7,21" /></svg>
                 }
@@ -628,7 +339,7 @@ export default function App() {
                     color: ts, fontSize: '0.62rem', fontFamily: "'DM Mono', monospace",
                     padding: '2px 6px', border: `1px solid ${pBorder}`, borderRadius: 4,
                   }}>
-                    {status.toUpperCase()}
+                    {engine.status.toUpperCase()}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -679,7 +390,7 @@ export default function App() {
                       }}
                       onWheel={handleBpmWheel}
                     >
-                      {bpm}
+                      {engine.bpm}
                     </div>
                     <div style={{ color: ts, fontSize: '0.6rem', letterSpacing: '0.16em', marginTop: 4 }}>BPM</div>
                   </div>
@@ -687,7 +398,7 @@ export default function App() {
                     {[1, -1].map(d => (
                       <button
                         key={d}
-                        onClick={() => setBpm(bpm + d)}
+                        onClick={() => engine.adjustBpm(d)}
                         style={{ width: 26, height: 26, border: 'none', cursor: 'pointer', background: 'transparent', color: ts, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5 }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = hov; (e.currentTarget as HTMLElement).style.color = tp; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = ts; }}
@@ -700,8 +411,8 @@ export default function App() {
                   </div>
                 </div>
                 <input
-                  type="range" min={40} max={240} value={bpm}
-                  onChange={e => setBpm(Number(e.target.value))}
+                  type="range" min={40} max={240} value={engine.bpm}
+                  onChange={e => engine.setBpm(Number(e.target.value))}
                   style={{ width: '100%', accentColor: tp, marginBottom: 10, display: 'block' }}
                 />
                 <button
@@ -727,7 +438,7 @@ export default function App() {
                     { id: '4/4', label: '4 / 4', testId: 'count-mode-4-4' },
                     { id: '8count', label: '8 Count', testId: 'count-mode-8count' },
                   ]}
-                  value={countMode} onChange={v => setCountMode(v as CountMode)}
+                  value={engine.countMode} onChange={v => engine.setCountMode(v as CountMode)}
                   tp={tp} ts={ts} bg={panelBg} border={pBorder}
                 />
               </div>
@@ -790,7 +501,7 @@ export default function App() {
                         position: 'relative', overflow: 'hidden',
                         transition: 'transform 0.12s',
                       }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)'}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = `scale(${1 + 0.05 * hoverBoost})`}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
                     >
                       <div style={{
@@ -858,7 +569,7 @@ export default function App() {
               {/* Main play/pause button */}
               <div style={{ padding: '16px', marginTop: 'auto', flexShrink: 0 }}>
                 <button
-                  onClick={togglePlay}
+                  onClick={engine.togglePlay}
                   style={{
                     width: '100%', padding: '12px 0', borderRadius: 999, border: 'none', cursor: 'pointer',
                     background: tp, color: panelBg,
@@ -871,9 +582,9 @@ export default function App() {
                   onMouseDown={e => (e.currentTarget as HTMLElement).style.transform = 'scale(0.97)'}
                   onMouseUp={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
                 >
-                  {status === 'Playing'
+                  {engine.status === 'Playing'
                     ? (<><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>PAUSE</>)
-                    : (<><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>{status === 'Ready' ? 'START' : 'RESUME'}</>)
+                    : (<><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>{engine.status === 'Ready' ? 'START' : 'PLAY'}</>)
                   }
                 </button>
               </div>

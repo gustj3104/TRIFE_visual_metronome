@@ -50,8 +50,8 @@ test.describe('Space key toggling', () => {
     expect(await getStatus(page)).toBe('Paused');
   });
 
-  test('Space does not double-toggle when the panel play/pause/resume button has focus', async ({ page }) => {
-    const panelBtn = page.getByRole('button', { name: /^(START|PAUSE|RESUME)/ });
+  test('Space does not double-toggle when the panel play/pause button has focus', async ({ page }) => {
+    const panelBtn = page.getByRole('button', { name: /^(START|PAUSE|PLAY)/ });
     await panelBtn.focus();
     expect(await getStatus(page)).toBe('Ready');
 

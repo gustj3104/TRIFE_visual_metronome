@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getStatus } from './utils';
+import { getComputedTransform, getStatus } from './utils';
 
 test.describe('Start button', () => {
   test.beforeEach(async ({ page }) => {
@@ -20,9 +20,9 @@ test.describe('Start button', () => {
   test('the metronome visual starts moving', async ({ page }) => {
     await page.getByTestId('start-button').click();
     const wrapper = page.getByTestId('bounce-translate-wrapper');
-    const before = await wrapper.getAttribute('transform');
+    const before = await getComputedTransform(wrapper);
     await page.waitForTimeout(300);
-    const after = await wrapper.getAttribute('transform');
+    const after = await getComputedTransform(wrapper);
     expect(after).not.toBe(before);
   });
 

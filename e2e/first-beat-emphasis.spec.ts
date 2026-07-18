@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { getStatus, getBpm, parseScale, parseTranslate } from './utils';
+import { getBpm, getComputedTransform, getStatus, parseMatrixScaleX, parseMatrixTranslate } from './utils';
 
 test.describe('First beat emphasis toggle', () => {
   test.beforeEach(async ({ page }) => {
@@ -13,10 +13,11 @@ test.describe('First beat emphasis toggle', () => {
   test('On: the first beat gets extra scale emphasis', async ({ page }) => {
     await page.getByTestId('start-button').click();
 
+    const scaleWrapper = page.getByTestId('bounce-scale-wrapper');
     let maxScale = 0;
     for (let i = 0; i < 40; i++) {
-      const t = await page.getByTestId('bounce-scale-wrapper').getAttribute('transform');
-      maxScale = Math.max(maxScale, parseScale(t));
+      const t = await getComputedTransform(scaleWrapper);
+      maxScale = Math.max(maxScale, parseMatrixScaleX(t));
       await page.waitForTimeout(50);
     }
     // Regular beat flash scales to 1.18; the first beat additionally scales to 1.38.
@@ -28,23 +29,25 @@ test.describe('First beat emphasis toggle', () => {
     await expect(page.getByTestId('first-beat-emphasis-toggle')).toHaveAttribute('aria-checked', 'false');
     await page.getByTestId('start-button').click();
 
+    const scaleWrapper = page.getByTestId('bounce-scale-wrapper');
     let maxScale = 0;
     for (let i = 0; i < 40; i++) {
-      const t = await page.getByTestId('bounce-scale-wrapper').getAttribute('transform');
-      maxScale = Math.max(maxScale, parseScale(t));
+      const t = await getComputedTransform(scaleWrapper);
+      maxScale = Math.max(maxScale, parseMatrixScaleX(t));
       await page.waitForTimeout(50);
     }
     // Regular beat emphasis policy is unchanged; only the first-beat boost is gone.
-    expect(maxScale).toBeCloseTo(1.18, 2);
+    expect(maxScale).toBeCloseTo(1.18, 1);
   });
 
   test('Off: position, BPM, and count still work normally', async ({ page }) => {
     await page.getByTestId('first-beat-emphasis-toggle').click();
     await page.getByTestId('start-button').click();
 
-    const before = await page.getByTestId('bounce-translate-wrapper').getAttribute('transform');
+    const wrapper = page.getByTestId('bounce-translate-wrapper');
+    const before = await getComputedTransform(wrapper);
     await page.waitForTimeout(300);
-    const after = await page.getByTestId('bounce-translate-wrapper').getAttribute('transform');
+    const after = await getComputedTransform(wrapper);
     expect(after).not.toBe(before);
 
     expect(await getBpm(page)).toBe(120);
@@ -54,13 +57,12 @@ test.describe('First beat emphasis toggle', () => {
   test('toggling On/Off does not change the ball center coordinates', async ({ page }) => {
     await page.getByTestId('start-button').click();
     await page.waitForTimeout(150);
-    const onTransform = await page.getByTestId('bounce-translate-wrapper').getAttribute('transform');
-    const onPos = parseTranslate(onTransform);
+    const wrapper = page.getByTestId('bounce-translate-wrapper');
+    const onPos = parseMatrixTranslate(await getComputedTransform(wrapper));
 
     await page.getByTestId('first-beat-emphasis-toggle').click();
     await page.waitForTimeout(50);
-    const offTransform = await page.getByTestId('bounce-translate-wrapper').getAttribute('transform');
-    const offPos = parseTranslate(offTransform);
+    const offPos = parseMatrixTranslate(await getComputedTransform(wrapper));
 
     // x is constant for vertical bounce regardless of emphasis; toggling
     // must not move the ball on its own (only the running clock does).

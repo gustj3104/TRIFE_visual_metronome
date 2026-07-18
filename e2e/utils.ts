@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 
 export type MetronomeStatus = 'Ready' | 'Playing' | 'Paused';
 
@@ -20,14 +20,31 @@ export async function getBpm(page: Page): Promise<number> {
   return Number(text?.trim());
 }
 
-export function parseTranslate(transform: string | null): { x: number; y: number } {
-  const m = transform?.match(/translate\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*\)/);
-  if (!m) throw new Error(`Could not parse translate() from "${transform}"`);
-  return { x: parseFloat(m[1]), y: parseFloat(m[2]) };
+/**
+ * Position/scale wrappers are now driven by the Web Animations API, which
+ * animates the CSS `transform` property (visible via getComputedStyle) -
+ * NOT the SVG `transform` presentation attribute, which stays unset. Tests
+ * must read the computed matrix, not `getAttribute('transform')`.
+ */
+export async function getComputedTransform(locator: Locator): Promise<string> {
+  return locator.evaluate((el) => getComputedStyle(el).transform);
 }
 
-export function parseScale(transform: string | null): number {
-  const m = transform?.match(/scale\(\s*([-\d.]+)\s*\)/);
-  if (!m) throw new Error(`Could not parse scale() from "${transform}"`);
-  return parseFloat(m[1]);
+function parseMatrix(matrix: string): number[] {
+  if (matrix === 'none') return [1, 0, 0, 1, 0, 0];
+  const m = matrix.match(/matrix\(([^)]+)\)/);
+  if (!m) throw new Error(`Could not parse computed transform matrix from "${matrix}"`);
+  return m[1].split(',').map((n) => parseFloat(n.trim()));
+}
+
+/** Reads the (x, y) translation out of a computed CSS transform matrix. */
+export function parseMatrixTranslate(matrix: string): { x: number; y: number } {
+  const [, , , , tx, ty] = parseMatrix(matrix);
+  return { x: tx, y: ty };
+}
+
+/** Reads the x-axis scale factor (matrix `a` component) out of a computed CSS transform matrix. */
+export function parseMatrixScaleX(matrix: string): number {
+  const [a] = parseMatrix(matrix);
+  return a;
 }
