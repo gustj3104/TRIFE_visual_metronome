@@ -1,19 +1,23 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useMetronomeEngine } from './engine/useMetronomeEngine';
+import {
+  DEFAULT_VISUAL_SIZE_SETTINGS,
+  type CountMode,
+  type Direction,
+  type StartCount,
+  type VisualSizeSettings,
+  type VizType,
+} from './engine/types';
+import { isEditableTarget } from './lib/keyboard';
+import { getCtaAriaLabel, getCtaLabel } from './lib/ctaLabels';
+import { BpmControl } from './components/BpmControl';
+import { SizeSection } from './components/SizeSection';
+import { BounceViz } from './viz/BounceViz';
+import { SwingViz } from './viz/SwingViz';
+import { PulseViz } from './viz/PulseViz';
+import { SweepViz } from './viz/SweepViz';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type VizType = 'Bounce' | 'Swing' | 'Pulse' | 'Sweep';
-type CountMode = '4/4' | '8count';
-type Direction = 'Vertical' | 'Horizontal';
-type Status = 'Ready' | 'Playing' | 'Paused';
-type StartCount = 'Immediately' | '4count' | '8count' | '5678';
-
-interface AnimState {
-  ballPos: number;
-  beat: number;
-  flash: boolean;
-  firstBeat: boolean;
-}
 
 interface Preset {
   id: string;
@@ -34,165 +38,6 @@ const PRESETS: readonly [Preset, ...Preset[]] = [
 ];
 
 const DEFAULT_PRESET: Preset = PRESETS[0];
-
-// ─── Visualizations ───────────────────────────────────────────────────────────
-
-// ease-in-out: slow at endpoints, fast in middle (sinusoidal)
-function easeInOut(t: number) {
-  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-}
-
-function BounceViz({
-  ballPos, direction, fg, flash, firstBeat, firstBeatEmphasis, isReady,
-}: {
-  ballPos: number; direction: Direction; fg: string;
-  flash: boolean; firstBeat: boolean;
-  firstBeatEmphasis: boolean; isReady: boolean;
-}) {
-  const isFB = firstBeat && firstBeatEmphasis;
-  const baseR = 50;
-  const scale = flash ? (isFB ? 1.38 : 1.18) : 1;
-  const lineW = flash ? (isFB ? 4 : 2.5) : 1.5;
-  const SP = 0.17, EP = 0.83;
-
-  let cx: number, cy: number;
-  let gx1: number, gy1: number, gx2: number, gy2: number;
-  let r1x1: number, r1y1: number, r1x2: number, r1y2: number;
-  let r2x1: number, r2y1: number, r2x2: number, r2y2: number;
-
-  if (direction === 'Vertical') {
-    cx = 500;
-    cy = isReady ? 500 : 1000 * (SP + ballPos * (EP - SP));
-    gx1 = 500; gy1 = 1000 * SP; gx2 = 500; gy2 = 1000 * EP;
-    r1x1 = 350; r1y1 = 1000 * SP; r1x2 = 650; r1y2 = 1000 * SP;
-    r2x1 = 350; r2y1 = 1000 * EP; r2x2 = 650; r2y2 = 1000 * EP;
-  } else {
-    cy = 500;
-    cx = isReady ? 500 : 1000 * (SP + ballPos * (EP - SP));
-    gx1 = 1000 * SP; gy1 = 500; gx2 = 1000 * EP; gy2 = 500;
-    r1x1 = 1000 * SP; r1y1 = 350; r1x2 = 1000 * SP; r1y2 = 650;
-    r2x1 = 1000 * EP; r2y1 = 350; r2x2 = 1000 * EP; r2y2 = 650;
-  }
-
-  const scaleTransition = flash
-    ? 'transform 0.06s cubic-bezier(0.34,1.56,0.64,1)'
-    : 'transform 0.18s ease-in';
-
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
-      <line x1={gx1} y1={gy1} x2={gx2} y2={gy2} stroke={fg} strokeWidth={0.5} strokeOpacity={0.06} />
-      <line x1={r1x1} y1={r1y1} x2={r1x2} y2={r1y2} stroke={fg} strokeWidth={lineW} strokeOpacity={0.28} strokeLinecap="round" style={{ transition: 'stroke-width 0.15s ease' }} />
-      <line x1={r2x1} y1={r2y1} x2={r2x2} y2={r2y2} stroke={fg} strokeWidth={lineW} strokeOpacity={0.28} strokeLinecap="round" style={{ transition: 'stroke-width 0.15s ease' }} />
-      <g transform={`translate(${cx}, ${cy})`}>
-        <g transform={`scale(${scale})`} style={{ transition: scaleTransition }}>
-          <circle r={baseR} fill={fg} />
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-function PulseViz({
-  ballPos, fg, flash, firstBeat, firstBeatEmphasis, status,
-}: {
-  ballPos: number; fg: string; flash: boolean; firstBeat: boolean;
-  firstBeatEmphasis: boolean; status: Status;
-}) {
-  const isFB = firstBeat && firstBeatEmphasis;
-  const scale = flash ? (isFB ? 1.48 : 1.24) : 1;
-  const playing = status === 'Playing';
-  const eased = easeInOut(ballPos);
-  const scaleTransition = flash
-    ? 'transform 0.07s cubic-bezier(0.34,1.56,0.64,1)'
-    : 'transform 0.2s ease-in';
-
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
-      {playing && (
-        <circle cx={500} cy={500} r={60 + eased * 250} fill="none"
-          stroke={fg} strokeWidth={2.5} strokeOpacity={(1 - eased) * 0.6} />
-      )}
-      {playing && ballPos > 0.4 && (
-        <circle cx={500} cy={500} r={60 + easeInOut((ballPos - 0.4) / 0.6) * 250} fill="none"
-          stroke={fg} strokeWidth={1.5} strokeOpacity={(1 - (ballPos - 0.4) / 0.6) * 0.3} />
-      )}
-      <g transform="translate(500, 500)">
-        <g transform={`scale(${scale})`} style={{ transition: scaleTransition }}>
-          <circle r={55} fill={fg} />
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-function SwingViz({
-  ballPos, fg, flash, firstBeat, firstBeatEmphasis, status,
-}: {
-  ballPos: number; fg: string; flash: boolean; firstBeat: boolean;
-  firstBeatEmphasis: boolean; status: Status;
-}) {
-  const isFB = firstBeat && firstBeatEmphasis;
-  const scale = flash ? (isFB ? 1.35 : 1.18) : 1;
-  const maxAngle = (status === 'Ready') ? 0 : 52 * Math.PI / 180;
-  const easedPos = Math.sin(ballPos * Math.PI - Math.PI / 2);
-  const angle = easedPos * maxAngle;
-
-  const pivotX = 500, pivotY = 130;
-  const armLength = 370;
-  const ballX = pivotX + armLength * Math.sin(angle);
-  const ballY = pivotY + armLength * Math.cos(angle);
-
-  const arcMaxAngle = 52 * Math.PI / 180;
-  const startX = pivotX - armLength * Math.sin(arcMaxAngle);
-  const startY = pivotY + armLength * Math.cos(arcMaxAngle);
-  const endX   = pivotX + armLength * Math.sin(arcMaxAngle);
-  const endY   = pivotY + armLength * Math.cos(arcMaxAngle);
-
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
-      <path d={`M ${startX} ${startY} A ${armLength} ${armLength} 0 0 1 ${endX} ${endY}`}
-        fill="none" stroke={fg} strokeWidth={0.5} strokeOpacity={0.09} />
-      <circle cx={startX} cy={startY} r={7} fill={fg} fillOpacity={0.18} />
-      <circle cx={endX}   cy={endY}   r={7} fill={fg} fillOpacity={0.18} />
-      <circle cx={pivotX} cy={pivotY} r={7} fill={fg} fillOpacity={0.4} />
-      <line x1={pivotX} y1={pivotY} x2={ballX} y2={ballY}
-        stroke={fg} strokeWidth={2} strokeOpacity={0.22} />
-      <g transform={`translate(${ballX}, ${ballY})`}>
-        <g
-          transform={`scale(${scale})`}
-          style={{ transition: flash ? 'transform 0.06s cubic-bezier(0.34,1.56,0.64,1)' : 'transform 0.18s ease-in' }}
-        >
-          <circle r={52} fill={fg} />
-        </g>
-      </g>
-    </svg>
-  );
-}
-
-function SweepViz({
-  ballPos, fg, flash, firstBeat, firstBeatEmphasis, status,
-}: {
-  ballPos: number; fg: string; flash: boolean; firstBeat: boolean;
-  firstBeatEmphasis: boolean; status: Status;
-}) {
-  const isFB = firstBeat && firstBeatEmphasis;
-  const barW = flash ? (isFB ? 12 : 8) : 5;
-  const x = (status === 'Ready') ? 500 : 120 + ballPos * 760;
-
-  return (
-    <svg width="100%" height="100%" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid meet">
-      <line x1={120} y1={175} x2={120} y2={825} stroke={fg} strokeWidth={1} strokeOpacity={0.15} />
-      <line x1={880} y1={175} x2={880} y2={825} stroke={fg} strokeWidth={1} strokeOpacity={0.15} />
-      <line x1={120} y1={500} x2={880} y2={500} stroke={fg} strokeWidth={0.5} strokeOpacity={0.06} />
-      <rect
-        x={x - barW / 2} y={155}
-        width={barW} height={690}
-        fill={fg} rx={barW / 2}
-        style={{ transition: flash ? 'width 0.07s cubic-bezier(0.34,1.56,0.64,1)' : 'width 0.18s ease-in' }}
-      />
-    </svg>
-  );
-}
 
 // ─── UI Helpers ───────────────────────────────────────────────────────────────
 
@@ -261,6 +106,9 @@ function ToggleRow({
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <span style={{ color: ts, fontSize: '0.73rem' }}>{label}</span>
       <button
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
         onClick={() => onChange(!value)}
         style={{
           position: 'relative', display: 'flex', alignItems: 'center',
@@ -285,9 +133,7 @@ function ToggleRow({
 
 export default function App() {
   const [isDark, setIsDark] = useState(true);
-  const [status, setStatus] = useState<Status>('Ready');
-  const [bpm, setBpmState] = useState(120);
-  const [countMode, setCountMode] = useState<CountMode>('4/4');
+  const engine = useMetronomeEngine();
   const [vizType, setVizType] = useState<VizType>('Bounce');
   const [direction, setDirection] = useState<Direction>('Vertical');
   const [firstBeatEmphasis, setFirstBeatEmphasis] = useState(true);
@@ -297,6 +143,9 @@ export default function App() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenSupported, setFullscreenSupported] = useState(true);
+  const [visualSizeSettings, setVisualSizeSettings] = useState<VisualSizeSettings>(DEFAULT_VISUAL_SIZE_SETTINGS);
+
+  const tapTimesRef = useRef<number[]>([]);
 
   const toggleFullscreen = useCallback(() => {
     try {
@@ -311,24 +160,8 @@ export default function App() {
       setFullscreenSupported(false);
     }
   }, []);
-  const [animState, setAnimState] = useState<AnimState>({ ballPos: 0, beat: 0, flash: false, firstBeat: false });
 
-  // Refs for animation (never trigger re-renders)
-  const rafRef = useRef<number>(0);
-  const statusRef = useRef<Status>('Ready');
-  const bpmRef = useRef(120);
-  const countModeRef = useRef<CountMode>('4/4');
-  const beatIndexRef = useRef(0);
-  const lastBeatTimeRef = useRef(0);
-  const goingForwardRef = useRef(true);
-  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const tapTimesRef = useRef<number[]>([]);
-
-  useEffect(() => { statusRef.current = status; }, [status]);
-  useEffect(() => { bpmRef.current = bpm; }, [bpm]);
-  useEffect(() => { countModeRef.current = countMode; }, [countMode]);
-
-  const totalBeats = countMode === '4/4' ? 4 : 8;
+  const { status, bpm, countMode, totalBeats, beatNumber, setBpm, setCountMode } = engine;
   const preset: Preset = PRESETS.find(p => p.id === presetId) ?? DEFAULT_PRESET;
 
   // Panel theme
@@ -338,101 +171,39 @@ export default function App() {
   const ts       = isDark ? '#666666' : '#909090';
   const hov      = isDark ? '#1c1c1c' : '#e2e2e2';
 
-  // ── Animation loop ─────────────────────────────────────────────────────────
-  // Named function expression so the recursive rAF call references its own
-  // function name (always available in its scope) instead of the outer
-  // `animate` const binding, which is still initializing at that point.
-  const animate = useCallback(function animate(timestamp: number) {
-    if (statusRef.current !== 'Playing') return;
+  // Ready → Start, Playing → Pause, Paused → Restart. Both Start and Restart
+  // perform an identical full reset-and-play; only the label/aria differ.
+  const handleCtaClick = useCallback(() => {
+    if (status === 'Playing') engine.pause();
+    else engine.start();
+  }, [status, engine]);
 
-    const beatDuration = 60000 / bpmRef.current;
-    if (lastBeatTimeRef.current === 0) lastBeatTimeRef.current = timestamp;
-
-    const elapsed = timestamp - lastBeatTimeRef.current;
-    const progress = elapsed / beatDuration;
-
-    if (progress >= 1) {
-      lastBeatTimeRef.current = lastBeatTimeRef.current + beatDuration;
-      const total = countModeRef.current === '4/4' ? 4 : 8;
-      beatIndexRef.current = (beatIndexRef.current + 1) % total;
-      goingForwardRef.current = !goingForwardRef.current;
-
-      const nb = beatIndexRef.current;
-      const isFirst = nb === 0;
-
-      setAnimState({ ballPos: goingForwardRef.current ? 0 : 1, beat: nb, flash: true, firstBeat: isFirst });
-
-      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
-      flashTimerRef.current = setTimeout(
-        () => setAnimState(prev => ({ ...prev, flash: false, firstBeat: false })),
-        isFirst ? 170 : 105,
-      );
-    } else {
-      const ballPos = goingForwardRef.current ? progress : 1 - progress;
-      setAnimState(prev => ({ ...prev, ballPos, beat: beatIndexRef.current }));
-    }
-
-    rafRef.current = requestAnimationFrame(animate);
-  }, []);
-
-  const startPlay = useCallback(() => {
-    beatIndexRef.current = 0;
-    goingForwardRef.current = true;
-    lastBeatTimeRef.current = 0;
-    statusRef.current = 'Playing';
-    setStatus('Playing');
-    setAnimState({ ballPos: 0, beat: 0, flash: false, firstBeat: false });
-    cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(animate);
-  }, [animate]);
-
-  const pausePlay = useCallback(() => {
-    statusRef.current = 'Paused';
-    setStatus('Paused');
-    cancelAnimationFrame(rafRef.current);
-  }, []);
-
-  const togglePlay = useCallback(() => {
-    if (statusRef.current === 'Playing') pausePlay(); else startPlay();
-  }, [startPlay, pausePlay]);
-
-  // Smooth BPM change preserving beat position
-  const setBpm = useCallback((v: number) => {
-    const next = Math.max(40, Math.min(240, Math.round(v)));
-    if (statusRef.current === 'Playing' && lastBeatTimeRef.current > 0) {
-      const now = performance.now();
-      const oldDur = 60000 / bpmRef.current;
-      const newDur = 60000 / next;
-      const frac = Math.min((now - lastBeatTimeRef.current) / oldDur, 1);
-      lastBeatTimeRef.current = now - frac * newDur;
-    }
-    bpmRef.current = next;
-    setBpmState(next);
-  }, []);
+  const ctaLabel = getCtaLabel(status);
+  const ctaAriaLabel = getCtaAriaLabel(status);
 
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT') return;
-      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-      else if (e.code === 'ArrowRight') setBpm(bpmRef.current + (e.shiftKey ? 5 : 1));
-      else if (e.code === 'ArrowLeft')  setBpm(bpmRef.current - (e.shiftKey ? 5 : 1));
+      if (isEditableTarget(e.target)) return;
+      if (e.code === 'Space') {
+        // A focused <button> already activates on Space via its native click
+        // handler; intercepting here too would toggle play state twice.
+        if (e.target instanceof HTMLElement && e.target.tagName === 'BUTTON') return;
+        e.preventDefault();
+        handleCtaClick();
+      } else if (e.code === 'ArrowRight') setBpm(bpm + (e.shiftKey ? 5 : 1));
+      else if (e.code === 'ArrowLeft') setBpm(bpm - (e.shiftKey ? 5 : 1));
       else if (e.code === 'KeyF') toggleFullscreen();
       else if (e.code === 'KeyC') setPanelOpen(p => !p);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [togglePlay, setBpm, toggleFullscreen]);
+  }, [handleCtaClick, setBpm, bpm, toggleFullscreen]);
 
   useEffect(() => {
     const onFS = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFS);
     return () => document.removeEventListener('fullscreenchange', onFS);
-  }, []);
-
-  useEffect(() => () => {
-    cancelAnimationFrame(rafRef.current);
-    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
   }, []);
 
   // Tap tempo
@@ -453,23 +224,24 @@ export default function App() {
 
   const handleBpmWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    setBpm(bpmRef.current - Math.sign(e.deltaY));
+    setBpm(bpm - Math.sign(e.deltaY));
   };
 
-  // Render visualization
-  const vizCommonProps = {
-    ballPos: animState.ballPos, fg: preset.fg,
-    flash: animState.flash, firstBeat: animState.firstBeat,
-    firstBeatEmphasis, status,
-  };
   const isReady = status === 'Ready';
 
   const renderViz = () => {
+    const commonProps = {
+      engine,
+      fg: preset.fg,
+      visualScale: visualSizeSettings.visualScale,
+      shapeScale: visualSizeSettings.shapeScale,
+      firstBeatEmphasisEnabled: firstBeatEmphasis,
+    };
     switch (vizType) {
-      case 'Bounce': return <BounceViz {...vizCommonProps} direction={direction} isReady={isReady} />;
-      case 'Pulse':  return <PulseViz  {...vizCommonProps} />;
-      case 'Swing':  return <SwingViz  {...vizCommonProps} />;
-      case 'Sweep':  return <SweepViz  {...vizCommonProps} />;
+      case 'Bounce': return <BounceViz {...commonProps} direction={direction} />;
+      case 'Swing':  return <SwingViz  {...commonProps} />;
+      case 'Pulse':  return <PulseViz  {...commonProps} />;
+      case 'Sweep':  return <SweepViz  {...commonProps} />;
     }
   };
 
@@ -503,12 +275,15 @@ export default function App() {
               display: 'flex', alignItems: 'center', gap: 14, zIndex: 10,
             }}>
               {Array.from({ length: totalBeats }, (_, i) => (
-                <span key={i} style={{
+                <span
+                  key={i}
+                  data-testid={i === beatNumber ? 'current-beat' : undefined}
+                  style={{
                   color: preset.fg,
                   fontFamily: "'DM Mono', monospace",
-                  fontSize: i === animState.beat ? '2.2rem' : '1rem',
-                  fontWeight: i === animState.beat ? 700 : 400,
-                  opacity: i === animState.beat ? 1 : 0.18,
+                  fontSize: i === beatNumber ? '2.2rem' : '1rem',
+                  fontWeight: i === beatNumber ? 700 : 400,
+                  opacity: i === beatNumber ? 1 : 0.18,
                   transition: 'all 0.07s ease',
                   lineHeight: 1,
                   minWidth: '1.5ch',
@@ -539,8 +314,9 @@ export default function App() {
                 {bpm} BPM
               </div>
               <button
-                onClick={togglePlay}
+                onClick={handleCtaClick}
                 title="Start (Space)"
+                aria-label={ctaAriaLabel}
                 style={{
                   width: 96, height: 96, borderRadius: '50%', border: 'none', cursor: 'pointer',
                   background: preset.fg, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -574,7 +350,8 @@ export default function App() {
                 {bpm} BPM
               </span>
               <button
-                onClick={togglePlay}
+                onClick={handleCtaClick}
+                aria-label={ctaAriaLabel}
                 style={{
                   width: 50, height: 50, borderRadius: '50%', border: 'none', cursor: 'pointer',
                   background: preset.fg, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -628,7 +405,7 @@ export default function App() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${pBorder}`, flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ color: tp, fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.12em' }}>BEAT</span>
-                  <span style={{
+                  <span data-testid="status-badge" style={{
                     color: ts, fontSize: '0.62rem', fontFamily: "'DM Mono', monospace",
                     padding: '2px 6px', border: `1px solid ${pBorder}`, borderRadius: 4,
                   }}>
@@ -665,16 +442,7 @@ export default function App() {
               <div style={{ padding: '16px 16px 14px', borderBottom: `1px solid ${pBorder}`, flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div>
-                    <div
-                      style={{
-                        color: tp, fontFamily: "'DM Mono', monospace",
-                        fontSize: '3.5rem', fontWeight: 700, lineHeight: 1,
-                        cursor: 'ns-resize', userSelect: 'none',
-                      }}
-                      onWheel={handleBpmWheel}
-                    >
-                      {bpm}
-                    </div>
+                    <BpmControl bpm={bpm} onCommit={setBpm} onWheel={handleBpmWheel} tp={tp} />
                     <div style={{ color: ts, fontSize: '0.6rem', letterSpacing: '0.16em', marginTop: 4 }}>BPM</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 18 }}>
@@ -682,6 +450,7 @@ export default function App() {
                       <button
                         key={d}
                         onClick={() => setBpm(bpm + d)}
+                        aria-label={d > 0 ? 'Increase BPM' : 'Decrease BPM'}
                         style={{ width: 26, height: 26, border: 'none', cursor: 'pointer', background: 'transparent', color: ts, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 5 }}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = hov; (e.currentTarget as HTMLElement).style.color = tp; }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = ts; }}
@@ -695,6 +464,7 @@ export default function App() {
                 </div>
                 <input
                   type="range" min={40} max={240} value={bpm}
+                  aria-label="BPM slider"
                   onChange={e => setBpm(Number(e.target.value))}
                   style={{ width: '100%', accentColor: tp, marginBottom: 10, display: 'block' }}
                 />
@@ -714,7 +484,7 @@ export default function App() {
               </div>
 
               {/* Count mode */}
-              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${pBorder}`, flexShrink: 0 }}>
+              <div data-testid="count-mode-section" style={{ padding: '12px 16px', borderBottom: `1px solid ${pBorder}`, flexShrink: 0 }}>
                 <SectionLabel text="COUNT MODE" ts={ts} />
                 <SegCtrl
                   opts={[{ id: '4/4', label: '4 / 4' }, { id: '8count', label: '8 Count' }]}
@@ -769,6 +539,7 @@ export default function App() {
                       key={p.id}
                       onClick={() => setPresetId(p.id)}
                       title={p.name}
+                      aria-label={p.name}
                       style={{
                         aspectRatio: '1', borderRadius: 8, background: p.bg, cursor: 'pointer',
                         border: presetId === p.id ? `2px solid ${tp}` : `1px solid ${pBorder}`,
@@ -788,6 +559,12 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Size */}
+              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${pBorder}`, flexShrink: 0 }}>
+                <SectionLabel text="SIZE" ts={ts} />
+                <SizeSection settings={visualSizeSettings} onChange={setVisualSizeSettings} tp={tp} ts={ts} />
               </div>
 
               {/* Start count */}
@@ -845,7 +622,10 @@ export default function App() {
               {/* Main play/pause button */}
               <div style={{ padding: '16px', marginTop: 'auto', flexShrink: 0 }}>
                 <button
-                  onClick={togglePlay}
+                  onClick={handleCtaClick}
+                  aria-label={ctaAriaLabel}
+                  data-testid="cta-button"
+                  data-status={status}
                   style={{
                     width: '100%', padding: '12px 0', borderRadius: 999, border: 'none', cursor: 'pointer',
                     background: tp, color: panelBg,
@@ -859,9 +639,10 @@ export default function App() {
                   onMouseUp={e => (e.currentTarget as HTMLElement).style.transform = 'scale(1)'}
                 >
                   {status === 'Playing'
-                    ? (<><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>PAUSE</>)
-                    : (<><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>{status === 'Ready' ? 'START' : 'RESUME'}</>)
+                    ? <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+                    : <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21" /></svg>
                   }
+                  {ctaLabel}
                 </button>
               </div>
 

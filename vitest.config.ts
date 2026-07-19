@@ -1,0 +1,19 @@
+/// <reference types="vitest/config" />
+import { defineConfig } from 'vite';
+import path from 'path';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src/app'),
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./tests/unit/setup.ts'],
+    include: ['tests/unit/**/*.test.{ts,tsx}'],
+    css: false,
+  },
+});
