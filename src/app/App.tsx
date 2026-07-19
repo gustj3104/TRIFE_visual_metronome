@@ -15,7 +15,15 @@ interface AnimState {
   firstBeat: boolean;
 }
 
-const PRESETS = [
+interface Preset {
+  id: string;
+  name: string;
+  bg: string;
+  fg: string;
+}
+
+// Typed as a non-empty tuple so PRESETS[0] is always a Preset, never undefined.
+const PRESETS: readonly [Preset, ...Preset[]] = [
   { id: 'bw',  name: 'Black / White',    bg: '#0a0a0a', fg: '#ffffff' },
   { id: 'wb',  name: 'White / Black',    bg: '#f2f2f2', fg: '#0a0a0a' },
   { id: 'by',  name: 'Black / Yellow',   bg: '#0a0a0a', fg: '#f5d200' },
@@ -24,6 +32,8 @@ const PRESETS = [
   { id: 'pl',  name: 'Purple / Lime',    bg: '#160c28', fg: '#c8f135' },
   { id: 'bc',  name: 'Burgundy / Cream', bg: '#3c0810', fg: '#f0e6d3' },
 ];
+
+const DEFAULT_PRESET: Preset = PRESETS[0];
 
 // ─── Visualizations ───────────────────────────────────────────────────────────
 
@@ -319,7 +329,7 @@ export default function App() {
   useEffect(() => { countModeRef.current = countMode; }, [countMode]);
 
   const totalBeats = countMode === '4/4' ? 4 : 8;
-  const preset = PRESETS.find(p => p.id === presetId) ?? PRESETS[0];
+  const preset: Preset = PRESETS.find(p => p.id === presetId) ?? DEFAULT_PRESET;
 
   // Panel theme
   const panelBg  = isDark ? '#111111' : '#f0f0f0';
@@ -329,7 +339,10 @@ export default function App() {
   const hov      = isDark ? '#1c1c1c' : '#e2e2e2';
 
   // ── Animation loop ─────────────────────────────────────────────────────────
-  const animate = useCallback((timestamp: number) => {
+  // Named function expression so the recursive rAF call references its own
+  // function name (always available in its scope) instead of the outer
+  // `animate` const binding, which is still initializing at that point.
+  const animate = useCallback(function animate(timestamp: number) {
     if (statusRef.current !== 'Playing') return;
 
     const beatDuration = 60000 / bpmRef.current;
@@ -409,7 +422,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [togglePlay, setBpm]);
+  }, [togglePlay, setBpm, toggleFullscreen]);
 
   useEffect(() => {
     const onFS = () => setIsFullscreen(!!document.fullscreenElement);
@@ -428,7 +441,12 @@ export default function App() {
     const taps = [...tapTimesRef.current.slice(-7), now];
     tapTimesRef.current = taps;
     if (taps.length >= 2) {
-      const intervals = taps.slice(1).map((t, i) => t - taps[i]);
+      const intervals: number[] = [];
+      for (let i = 1; i < taps.length; i++) {
+        const prev = taps[i - 1];
+        const cur = taps[i];
+        if (prev !== undefined && cur !== undefined) intervals.push(cur - prev);
+      }
       setBpm(Math.round(60000 / (intervals.reduce((a, b) => a + b) / intervals.length)));
     }
   };
