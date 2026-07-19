@@ -11,7 +11,7 @@ interface BpmControlProps {
 
 const DISPLAY_FONT_STYLE: React.CSSProperties = {
   fontFamily: "'DM Mono', monospace",
-  fontSize: '3.5rem',
+  fontSize: '4.55rem',
   fontWeight: 700,
   lineHeight: 1,
   userSelect: 'none',

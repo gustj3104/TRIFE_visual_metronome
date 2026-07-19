@@ -37,8 +37,8 @@ function SizeSlider({
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-        <span style={{ color: ts, fontSize: '0.73rem' }}>{label}</span>
-        <span style={{ color: tp, fontFamily: "'DM Mono', monospace", fontSize: '0.7rem' }}>{formatScalePercent(value)}</span>
+        <span style={{ color: ts, fontSize: '0.949rem' }}>{label}</span>
+        <span style={{ color: tp, fontFamily: "'DM Mono', monospace", fontSize: '0.91rem' }}>{formatScalePercent(value)}</span>
       </div>
       <input
         type="range"

@@ -62,7 +62,7 @@ function IconBtn({
 
 function SectionLabel({ text, ts }: { text: string; ts: string }) {
   return (
-    <div style={{ color: ts, fontSize: '0.62rem', letterSpacing: '0.14em', fontWeight: 700, marginBottom: 8 }}>
+    <div style={{ color: ts, fontSize: '0.806rem', letterSpacing: '0.14em', fontWeight: 700, marginBottom: 8 }}>
       {text}
     </div>
   );
@@ -82,7 +82,7 @@ function SegCtrl({
           key={o.id}
           onClick={() => onChange(o.id)}
           style={{
-            flex: 1, padding: '7px 4px', fontSize: '0.72rem', border: 'none', cursor: 'pointer',
+            flex: 1, padding: '7px 4px', fontSize: '0.936rem', border: 'none', cursor: 'pointer',
             background: value === o.id ? tp : 'transparent',
             color: value === o.id ? bg : ts,
             fontWeight: value === o.id ? 700 : 400,
@@ -104,7 +104,7 @@ function ToggleRow({
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <span style={{ color: ts, fontSize: '0.73rem' }}>{label}</span>
+      <span style={{ color: ts, fontSize: '0.949rem' }}>{label}</span>
       <button
         role="switch"
         aria-checked={value}
@@ -404,9 +404,9 @@ export default function App() {
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: `1px solid ${pBorder}`, flexShrink: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ color: tp, fontSize: '0.78rem', fontWeight: 700, letterSpacing: '0.12em' }}>BEAT</span>
+                  <span style={{ color: tp, fontSize: '1.014rem', fontWeight: 700, letterSpacing: '0.12em' }}>BEAT</span>
                   <span data-testid="status-badge" style={{
-                    color: ts, fontSize: '0.62rem', fontFamily: "'DM Mono', monospace",
+                    color: ts, fontSize: '0.806rem', fontFamily: "'DM Mono', monospace",
                     padding: '2px 6px', border: `1px solid ${pBorder}`, borderRadius: 4,
                   }}>
                     {status.toUpperCase()}
@@ -443,7 +443,7 @@ export default function App() {
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div>
                     <BpmControl bpm={bpm} onCommit={setBpm} onWheel={handleBpmWheel} tp={tp} />
-                    <div style={{ color: ts, fontSize: '0.6rem', letterSpacing: '0.16em', marginTop: 4 }}>BPM</div>
+                    <div style={{ color: ts, fontSize: '0.78rem', letterSpacing: '0.16em', marginTop: 4 }}>BPM</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 18 }}>
                     {[1, -1].map(d => (
@@ -473,7 +473,7 @@ export default function App() {
                   style={{
                     width: '100%', padding: '8px 0', borderRadius: 8, cursor: 'pointer',
                     color: ts, border: `1px solid ${pBorder}`, background: 'transparent',
-                    fontSize: '0.7rem', letterSpacing: '0.12em', fontWeight: 600,
+                    fontSize: '0.91rem', letterSpacing: '0.12em', fontWeight: 600,
                     transition: 'background 0.15s',
                   }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = hov}
@@ -502,7 +502,7 @@ export default function App() {
                       key={v}
                       onClick={() => setVizType(v)}
                       style={{
-                        padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem',
+                        padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: '0.936rem',
                         background: vizType === v ? tp : 'transparent',
                         color: vizType === v ? panelBg : ts,
                         border: `1px solid ${vizType === v ? tp : pBorder}`,
@@ -581,7 +581,7 @@ export default function App() {
                       key={opt.id}
                       onClick={() => setStartCount(opt.id)}
                       style={{
-                        padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem',
+                        padding: '8px 4px', borderRadius: 8, cursor: 'pointer', fontSize: '0.936rem',
                         background: startCount === opt.id ? tp : 'transparent',
                         color: startCount === opt.id ? panelBg : ts,
                         border: `1px solid ${startCount === opt.id ? tp : pBorder}`,
@@ -607,9 +607,9 @@ export default function App() {
                     ['C', 'Toggle panel'],
                   ].map(([key, desc]) => (
                     <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: ts, fontSize: '0.7rem' }}>{desc}</span>
+                      <span style={{ color: ts, fontSize: '0.91rem' }}>{desc}</span>
                       <span style={{
-                        color: tp, fontFamily: "'DM Mono', monospace", fontSize: '0.6rem',
+                        color: tp, fontFamily: "'DM Mono', monospace", fontSize: '0.78rem',
                         padding: '2px 6px', border: `1px solid ${pBorder}`, borderRadius: 4,
                       }}>
                         {key}
@@ -630,7 +630,7 @@ export default function App() {
                     width: '100%', padding: '12px 0', borderRadius: 999, border: 'none', cursor: 'pointer',
                     background: tp, color: panelBg,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    fontSize: '0.74rem', fontWeight: 700, letterSpacing: '0.1em',
+                    fontSize: '0.962rem', fontWeight: 700, letterSpacing: '0.1em',
                     transition: 'opacity 0.15s, transform 0.15s',
                   }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.86'}
