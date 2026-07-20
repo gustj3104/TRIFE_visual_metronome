@@ -1,6 +1,7 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { ImageWithFallback } from "./components/ImageWithFallback";
 import trifeLogoSrc from "./assets/trife-logo.png";
+import { submitApplication, ApplicationSubmitError } from "../lib/notionApplication";
 import {
   ChevronLeft, ChevronRight, Check, ArrowRight,
   MapPin, Clock, Zap, Package, AlertCircle, CheckCircle2,
@@ -155,7 +156,7 @@ function StatusBadge({ status }: { status: Status }) {
 
 // ─── Activity data ────────────────────────────────────────────────────────────
 interface Activity {
-  id: string; date: string; dayLabel: string; month: string; weekLabel: string;
+  id: string; date: string; isoDate: string; dayLabel: string; month: string; weekLabel: string;
   name: string; type: string; time: string; place: string; difficulty: string;
   prep: string; status: Status; detail: string; intensity: string; duration: string;
   weather: string; accessibility: string;
@@ -163,7 +164,7 @@ interface Activity {
 
 const ACTIVITIES: Activity[] = [
   {
-    id: "aug-10", date: "10", dayLabel: "일", month: "AUG", weekLabel: "둘째 일요일",
+    id: "aug-10", date: "10", isoDate: "2026-08-10", dayLabel: "일", month: "AUG", weekLabel: "둘째 일요일",
     name: "정기 가이드 러닝", type: "가이드 러닝", time: "09:30–11:30", place: "중랑천 (용비교 집결)",
     difficulty: "초보 참여 가능", prep: "운동화와 물을 준비해 주세요.", status: "available",
     detail: "시각장애인 참가자와 비장애인 가이드가 함께 달리는 러닝 세션입니다. 처음 참여하는 분들도 편안하게 함께할 수 있습니다.",
@@ -172,7 +173,7 @@ const ACTIVITIES: Activity[] = [
     accessibility: "코스는 평탄한 하천 변 경로입니다. 휠체어 접근 가능 여부는 사전 문의 주세요.",
   },
   {
-    id: "aug-24", date: "24", dayLabel: "일", month: "AUG", weekLabel: "넷째 일요일",
+    id: "aug-24", date: "24", isoDate: "2026-08-24", dayLabel: "일", month: "AUG", weekLabel: "넷째 일요일",
     name: "포용적 보강운동 세션", type: "근력 및 보강운동", time: "10:00–12:00", place: "서울숲 야외 운동장",
     difficulty: "모든 레벨 가능", prep: "편한 운동복, 물, 개인 매트(선택)", status: "upcoming",
     detail: "다양한 신체 조건을 고려한 보강운동과 스트레칭 세션입니다. 운동 강도는 각자의 컨디션에 맞춰 조절합니다.",
@@ -791,10 +792,6 @@ function RulesScreen({ onNext, onBack }: { onNext: () => void; onBack: () => voi
 interface FormData { name: string; phone: string; gender: string; district: string; dong: string; age: string; frequency: string; privacy: boolean; }
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
-// act, score, and participantType are part of the flow's typed handoff (the
-// eventual submission payload once this connects to a real backend) but
-// aren't rendered by this mock form yet.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function FormScreen({ act, score, participantType, onComplete, onBack }: {
   act: Activity; score: number; participantType: "new" | "returning"; onComplete: () => void; onBack: () => void;
 }) {
@@ -802,6 +799,7 @@ function FormScreen({ act, score, participantType, onComplete, onBack }: {
   const [errors, setErrors] = useState<FormErrors>({});
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const set = (k: keyof FormData) => (v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
   const clearErr = (k: keyof FormData) => setErrors((e) => ({ ...e, [k]: "" }));
@@ -824,10 +822,35 @@ function FormScreen({ act, score, participantType, onComplete, onBack }: {
 
   const handleSubmit = async () => {
     if (!validate()) return;
+    setSubmitError(null);
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1400));
-    setSubmitting(false);
-    onComplete();
+    try {
+      await submitApplication({
+        name: form.name.trim(),
+        phone: form.phone,
+        gender: form.gender,
+        district: form.district.trim(),
+        dong: form.dong.trim(),
+        age: +form.age,
+        frequency: form.frequency,
+        privacyConsent: form.privacy,
+        rulesConsent: true,
+        participantType: participantType === "new" ? "신규" : "기존",
+        quizScore: score,
+        quizTotal: QUIZ.length,
+        activityName: act.name,
+        activityDate: act.isoDate,
+      });
+      onComplete();
+    } catch (err) {
+      setSubmitError(
+        err instanceof ApplicationSubmitError
+          ? err.message
+          : "신청서 제출에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const fmtPhone = (v: string) => {
@@ -848,11 +871,16 @@ function FormScreen({ act, score, participantType, onComplete, onBack }: {
       onBack={onBack}
       step={5}
       footer={
-        <button onClick={handleSubmit} disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[14px] font-bold text-sm min-h-[52px] hover:opacity-90 transition-opacity"
-          style={{ background: C.darkGreen, color: C.white }}>
-          {submitting ? <><Loader2 size={15} className="animate-spin" />제출 중...</> : <>신청 제출하기 <ArrowRight size={15} /></>}
-        </button>
+        <div className="flex flex-col gap-2">
+          {submitError && (
+            <p className="text-xs text-center" style={{ color: "#C0392B" }} role="alert">{submitError}</p>
+          )}
+          <button onClick={handleSubmit} disabled={submitting}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[14px] font-bold text-sm min-h-[52px] hover:opacity-90 transition-opacity"
+            style={{ background: C.darkGreen, color: C.white }}>
+            {submitting ? <><Loader2 size={15} className="animate-spin" />제출 중...</> : <>신청 제출하기 <ArrowRight size={15} /></>}
+          </button>
+        </div>
       }
     >
       <div className="px-4 py-5">
