@@ -9,7 +9,25 @@
       <meta name="description" content="Visual metronome app with dynamic animations and customizable settings to help musicians keep precise timing during practice and performance." />
       <meta name="robots" content="noindex, nofollow" />
       <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
-      
+      <script type="text/javascript">
+        // Single Page Apps for GitHub Pages
+        // MIT License
+        // https://github.com/rafgraph/spa-github-pages
+        // Reverses the redirect performed by public/404.html, restoring the
+        // original deep-link path before the app (and its router) mounts.
+        (function (l) {
+          if (l.search[1] === '/') {
+            var decoded = l.search
+              .slice(1)
+              .split('&')
+              .map(function (s) {
+                return s.replace(/~and~/g, '&');
+              })
+              .join('?');
+            window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash);
+          }
+        })(window.location);
+      </script>
     </head>
 
     <body>

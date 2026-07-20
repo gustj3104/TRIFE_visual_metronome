@@ -78,6 +78,21 @@ if (typeof Element !== 'undefined' && !elementProto.animate) {
   };
 }
 
+// jsdom's Blob/File implementation does not implement arrayBuffer() (a
+// long-standing jsdom gap — https://github.com/jsdom/jsdom/issues/2555).
+// Code under test reads uploaded audio files via File.arrayBuffer(), so
+// without this polyfill every file-decode path throws synchronously.
+if (typeof Blob !== 'undefined' && !Blob.prototype.arrayBuffer) {
+  Blob.prototype.arrayBuffer = function arrayBuffer(this: Blob) {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
+
 if (typeof window !== 'undefined' && !window.matchMedia) {
   window.matchMedia = ((query: string) => ({
     matches: false,
