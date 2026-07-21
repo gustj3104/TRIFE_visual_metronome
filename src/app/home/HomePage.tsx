@@ -2,9 +2,10 @@ import { useState, useEffect, type ReactNode } from "react";
 import { ImageWithFallback } from "./components/ImageWithFallback";
 import trifeLogoSrc from "./assets/trife-logo.png";
 import { submitApplication, ApplicationSubmitError } from "../lib/notionApplication";
+import { fetchActivities, ActivitiesFetchError, type RemoteActivity } from "../lib/notionActivities";
 import {
   ChevronLeft, ChevronRight, Check, ArrowRight,
-  MapPin, Clock, Zap, Package, AlertCircle, CheckCircle2,
+  MapPin, Clock, Zap, AlertCircle, CheckCircle2,
   Users, Heart, Shield, ChevronDown, Instagram, Home,
   Loader2, Calendar, Info, X,
 } from "lucide-react";
@@ -155,33 +156,52 @@ function StatusBadge({ status }: { status: Status }) {
 }
 
 // ─── Activity data ────────────────────────────────────────────────────────────
+// Sourced from the Notion "활동 일정 DB": an admin marks a row 공개여부(공개)
+// to have it fetched from the Notion proxy worker and shown here.
 interface Activity {
-  id: string; date: string; isoDate: string; dayLabel: string; month: string; weekLabel: string;
-  name: string; type: string; time: string; place: string; difficulty: string;
-  prep: string; status: Status; detail: string; intensity: string; duration: string;
-  weather: string; accessibility: string;
+  id: string; activityId: string; date: string; isoDate: string; dayLabel: string;
+  month: string; weekLabel: string; name: string; time: string; place: string;
+  status: Status; intensity: string; detail: string;
 }
 
-const ACTIVITIES: Activity[] = [
-  {
-    id: "aug-10", date: "10", isoDate: "2026-08-10", dayLabel: "일", month: "AUG", weekLabel: "둘째 일요일",
-    name: "정기 가이드 러닝", type: "가이드 러닝", time: "09:30–11:30", place: "중랑천 (용비교 집결)",
-    difficulty: "초보 참여 가능", prep: "운동화와 물을 준비해 주세요.", status: "available",
-    detail: "시각장애인 참가자와 비장애인 가이드가 함께 달리는 러닝 세션입니다. 처음 참여하는 분들도 편안하게 함께할 수 있습니다.",
-    intensity: "낮음–보통", duration: "약 2시간",
-    weather: "우천 시 일정이 변경될 수 있으며 사전에 공지합니다.",
-    accessibility: "코스는 평탄한 하천 변 경로입니다. 휠체어 접근 가능 여부는 사전 문의 주세요.",
-  },
-  {
-    id: "aug-24", date: "24", isoDate: "2026-08-24", dayLabel: "일", month: "AUG", weekLabel: "넷째 일요일",
-    name: "포용적 보강운동 세션", type: "근력 및 보강운동", time: "10:00–12:00", place: "서울숲 야외 운동장",
-    difficulty: "모든 레벨 가능", prep: "편한 운동복, 물, 개인 매트(선택)", status: "upcoming",
-    detail: "다양한 신체 조건을 고려한 보강운동과 스트레칭 세션입니다. 운동 강도는 각자의 컨디션에 맞춰 조절합니다.",
-    intensity: "보통", duration: "약 2시간",
-    weather: "우천 시 실내 공간으로 변경합니다.",
-    accessibility: "야외 운동장은 평탄하며 휠체어 접근 가능합니다.",
-  },
-];
+const STATUS_MAP: Record<string, Status> = {
+  "신청 가능": "available",
+  "모집 예정": "upcoming",
+  "신청 마감": "closed",
+  "취소": "cancelled",
+};
+
+const ORDINAL_LABELS = ["첫째", "둘째", "셋째", "넷째", "다섯째"];
+const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const MONTH_LABELS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+function toActivity(remote: RemoteActivity): Activity {
+  const parsed = new Date(`${remote.date}T00:00:00`);
+  const dayOfMonth = String(parsed.getDate());
+  const dayLabel = DAY_LABELS[parsed.getDay()] ?? "";
+  const month = MONTH_LABELS[parsed.getMonth()] ?? "";
+  const occurrence = Math.floor((parsed.getDate() - 1) / 7);
+  const weekLabel = `${ORDINAL_LABELS[occurrence] ?? `${occurrence + 1}번째`} ${dayLabel}요일`;
+  const time = remote.startTime && remote.endTime
+    ? `${remote.startTime}–${remote.endTime}`
+    : remote.startTime || remote.endTime;
+
+  return {
+    id: remote.id,
+    activityId: remote.activityId,
+    date: dayOfMonth,
+    isoDate: remote.date,
+    dayLabel,
+    month,
+    weekLabel,
+    name: remote.name,
+    time,
+    place: remote.place,
+    status: STATUS_MAP[remote.status] ?? "closed",
+    intensity: remote.intensity,
+    detail: remote.bottomText,
+  };
+}
 
 // ─── Quiz data ────────────────────────────────────────────────────────────────
 const QUIZ = [
@@ -235,8 +255,39 @@ function BottomNav({ tab, onChange }: { tab: Tab; onChange: (t: Tab) => void }) 
   );
 }
 
+// ─── Activity loading/error/empty states ───────────────────────────────────────
+function ActivitiesLoading() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-10" style={{ color: C.sub }}>
+      <Loader2 size={20} className="animate-spin" />
+      <span className="text-xs">활동 일정을 불러오는 중...</span>
+    </div>
+  );
+}
+
+function ActivitiesError({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-10 px-6 text-center" style={{ color: C.sub }}>
+      <AlertCircle size={20} />
+      <span className="text-xs leading-[1.7]">{message}</span>
+    </div>
+  );
+}
+
+function ActivitiesEmpty() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 py-10 px-6 text-center" style={{ color: C.sub }}>
+      <Calendar size={20} />
+      <span className="text-xs">예정된 활동이 없습니다.</span>
+    </div>
+  );
+}
+
 // ─── HOME tab ─────────────────────────────────────────────────────────────────
-function HomeTab({ onApply, onSchedule }: { onApply: (a: Activity) => void; onSchedule: () => void }) {
+function HomeTab({ activities, loadError, onApply, onSchedule }: {
+  activities: Activity[] | null; loadError: string | null;
+  onApply: (a: Activity) => void; onSchedule: () => void;
+}) {
   return (
     <div style={{ fontFamily: "'Noto Sans KR', sans-serif" }}>
       {/* Hero */}
@@ -333,9 +384,17 @@ function HomeTab({ onApply, onSchedule }: { onApply: (a: Activity) => void; onSc
           </button>
         </div>
         <div className="flex flex-col gap-3">
-          {ACTIVITIES.slice(0, 1).map((act) => (
-            <MiniCard key={act.id} act={act} onApply={onApply} />
-          ))}
+          {loadError ? (
+            <ActivitiesError message={loadError} />
+          ) : activities === null ? (
+            <ActivitiesLoading />
+          ) : activities.length === 0 ? (
+            <ActivitiesEmpty />
+          ) : (
+            activities.slice(0, 1).map((act) => (
+              <MiniCard key={act.id} act={act} onApply={onApply} />
+            ))
+          )}
         </div>
       </div>
 
@@ -396,11 +455,13 @@ function MiniCard({ act, onApply }: { act: Activity; onApply: (a: Activity) => v
 }
 
 // ─── SCHEDULE tab ─────────────────────────────────────────────────────────────
-function ScheduleTab({ onApply }: { onApply: (a: Activity) => void }) {
+function ScheduleTab({ activities, loadError, onApply }: {
+  activities: Activity[] | null; loadError: string | null; onApply: (a: Activity) => void;
+}) {
   return (
     <div className="px-4 py-5" style={{ fontFamily: "'Noto Sans KR', sans-serif" }}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="font-bold text-lg" style={{ color: C.text }}>이번 달 활동</h2>
+        <h2 className="font-bold text-lg" style={{ color: C.text }}>활동 일정</h2>
         <div className="flex items-center gap-2">
           <button className="w-7 h-7 rounded-full border flex items-center justify-center" style={{ borderColor: C.border }} aria-label="이전 달"><ChevronLeft size={14} style={{ color: C.sub }} /></button>
           <span className="text-xs font-semibold" style={{ color: C.text }}>2026년 8월</span>
@@ -408,7 +469,15 @@ function ScheduleTab({ onApply }: { onApply: (a: Activity) => void }) {
         </div>
       </div>
       <div className="flex flex-col gap-4">
-        {ACTIVITIES.map((act) => <FullActivityCard key={act.id} act={act} onApply={onApply} />)}
+        {loadError ? (
+          <ActivitiesError message={loadError} />
+        ) : activities === null ? (
+          <ActivitiesLoading />
+        ) : activities.length === 0 ? (
+          <ActivitiesEmpty />
+        ) : (
+          activities.map((act) => <FullActivityCard key={act.id} act={act} onApply={onApply} />)
+        )}
       </div>
     </div>
   );
@@ -432,8 +501,9 @@ function FullActivityCard({ act, onApply }: { act: Activity; onApply: (a: Activi
       <div className="flex flex-col gap-2 text-xs mb-4" style={{ color: C.sub }}>
         <div className="flex items-center gap-2"><Clock size={12} style={{ color: C.midGreen }} />{act.time}</div>
         <div className="flex items-center gap-2"><MapPin size={12} style={{ color: C.midGreen }} />{act.place}</div>
-        <div className="flex items-center gap-2"><Zap size={12} style={{ color: C.midGreen }} />{act.difficulty}</div>
-        <div className="flex items-center gap-2"><Package size={12} style={{ color: C.midGreen }} />{act.prep}</div>
+        {act.intensity && (
+          <div className="flex items-center gap-2"><Zap size={12} style={{ color: C.midGreen }} />강도: {act.intensity}</div>
+        )}
       </div>
       <button
         onClick={() => !disabled && onApply(act)}
@@ -542,22 +612,18 @@ function ActivityDetailScreen({ act, onNext, onBack }: { act: Activity; onNext: 
           <div className="grid grid-cols-2 gap-2 text-xs" style={{ color: C.sub }}>
             <span className="flex items-center gap-1.5"><Clock size={11} style={{ color: C.midGreen }} />{act.time}</span>
             <span className="flex items-center gap-1.5"><MapPin size={11} style={{ color: C.midGreen }} />{act.place}</span>
-            <span className="flex items-center gap-1.5"><Zap size={11} style={{ color: C.midGreen }} />강도: {act.intensity}</span>
-            <span className="flex items-center gap-1.5"><Clock size={11} style={{ color: C.midGreen }} />소요: {act.duration}</span>
+            {act.intensity && (
+              <span className="flex items-center gap-1.5"><Zap size={11} style={{ color: C.midGreen }} />강도: {act.intensity}</span>
+            )}
           </div>
         </div>
 
-        {[
-          { title: "활동 내용", text: act.detail },
-          { title: "준비물", text: act.prep },
-          { title: "우천 시 안내", text: act.weather },
-          { title: "접근성 안내", text: act.accessibility },
-        ].map(({ title, text }) => (
-          <div key={title} className="mb-5">
-            <p className="text-xs font-bold mb-1.5" style={{ color: C.darkGreen }}>{title}</p>
-            <p className="text-sm leading-[1.8]" style={{ color: C.sub }}>{text}</p>
+        {act.detail && (
+          <div className="mb-5">
+            <p className="text-xs font-bold mb-1.5" style={{ color: C.darkGreen }}>안내</p>
+            <p className="text-sm leading-[1.8]" style={{ color: C.sub }}>{act.detail}</p>
           </div>
-        ))}
+        )}
       </div>
     </PageShell>
   );
@@ -1055,6 +1121,28 @@ type Screen =
 
 export default function HomePage() {
   const [screen, setScreen] = useState<Screen>({ id: "main", tab: "home" });
+  const [activities, setActivities] = useState<Activity[] | null>(null);
+  const [activitiesError, setActivitiesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchActivities()
+      .then((remote) => {
+        if (cancelled) return;
+        setActivities(remote.map(toActivity));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setActivitiesError(
+          err instanceof ActivitiesFetchError
+            ? err.message
+            : "활동 일정을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const el = document.querySelector(".overflow-y-auto");
@@ -1100,12 +1188,18 @@ export default function HomePage() {
             <div className="flex-1 overflow-y-auto">
               {screen.tab === "home" && (
                 <HomeTab
+                  activities={activities}
+                  loadError={activitiesError}
                   onApply={(act) => setScreen({ id: "detail", act })}
                   onSchedule={() => setScreen({ id: "main", tab: "schedule" })}
                 />
               )}
               {screen.tab === "schedule" && (
-                <ScheduleTab onApply={(act) => setScreen({ id: "detail", act })} />
+                <ScheduleTab
+                  activities={activities}
+                  loadError={activitiesError}
+                  onApply={(act) => setScreen({ id: "detail", act })}
+                />
               )}
               {screen.tab === "about" && <AboutTab />}
             </div>

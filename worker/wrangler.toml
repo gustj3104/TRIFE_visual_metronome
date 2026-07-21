@@ -5,6 +5,7 @@ compatibility_date = "2025-01-01"
 [vars]
 ALLOWED_ORIGIN = "https://gustj3104.github.io"
 NOTION_DATA_SOURCE_ID = "3a3def2f-ec3e-8025-8efa-000b31eabdfc"
+NOTION_ACTIVITIES_DATA_SOURCE_ID = "3a3def2f-ec3e-80d2-adbb-000b561b97b7"
 
 # NOTION_TOKEN is a secret and must not be committed here.
 # Set it after deploying with:
