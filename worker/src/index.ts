@@ -157,10 +157,17 @@ async function handleQuizQuery(env: Env, origin: string): Promise<Response> {
     return jsonResponse({ error: 'Failed to load quiz questions' }, 502, origin);
   }
 
-  const data = (await notionResponse.json()) as { results: NotionPage[] };
-  const questions = data.results
-    .map(mapNotionPageToQuizQuestion)
-    .filter((q): q is QuizQuestion => q !== null);
+  let data: { results: NotionPage[] };
+  let questions: QuizQuestion[];
+  try {
+    data = (await notionResponse.json()) as { results: NotionPage[] };
+    questions = data.results
+      .map(mapNotionPageToQuizQuestion)
+      .filter((q): q is QuizQuestion => q !== null);
+  } catch (err) {
+    console.error('[quiz] failed to parse/map Notion response', err);
+    return jsonResponse({ error: 'Failed to load quiz questions' }, 502, origin);
+  }
 
   console.log(`[quiz] Notion returned ${data.results.length} row(s), ${questions.length} valid after mapping`);
   if (data.results.length > 0 && questions.length === 0) {
@@ -218,24 +225,34 @@ interface ActivityListItem {
   bottomText: string;
 }
 
-function plainText(prop: { plain_text: string }[]): string {
-  return prop.map((t) => t.plain_text).join('').trim();
+function plainText(prop: { plain_text: string }[] | undefined): string {
+  return (prop ?? []).map((t) => t.plain_text).join('').trim();
 }
 
+function selectName(prop: NotionSelectProperty | undefined): string {
+  return prop?.select?.name ?? '';
+}
+
+// Notion property access is defensive (optional chaining, no direct index
+// access) because a dummy/admin-edited row can easily have a property
+// missing, renamed, or a different type than expected — that must not crash
+// the whole request, since an uncaught exception here returns a response
+// without our CORS headers and shows up in the browser as an opaque
+// "network error" instead of a readable message.
 function mapActivity(page: NotionActivityPage): ActivityListItem {
   const props = page.properties;
   return {
     id: page.id,
-    activityId: plainText(props['활동 ID'].rich_text),
-    name: plainText(props['활동명'].title),
-    status: props['모집상태'].select?.name ?? '',
-    date: props['활동일'].date?.start ?? '',
-    endDate: props['활동일'].date?.end ?? null,
-    startTime: plainText(props['시작 시간'].rich_text),
-    endTime: plainText(props['종료 시간'].rich_text),
-    place: plainText(props['활동지(집결지)'].rich_text),
-    intensity: props['강도'].select?.name ?? '',
-    bottomText: plainText(props['하단 본문'].rich_text),
+    activityId: plainText(props['활동 ID']?.rich_text),
+    name: plainText(props['활동명']?.title),
+    status: selectName(props['모집상태']),
+    date: props['활동일']?.date?.start ?? '',
+    endDate: props['활동일']?.date?.end ?? null,
+    startTime: plainText(props['시작 시간']?.rich_text),
+    endTime: plainText(props['종료 시간']?.rich_text),
+    place: plainText(props['활동지(집결지)']?.rich_text),
+    intensity: selectName(props['강도']),
+    bottomText: plainText(props['하단 본문']?.rich_text),
   };
 }
 
@@ -270,10 +287,18 @@ async function handleGetActivities(env: Env, origin: string): Promise<Response> 
     return jsonResponse({ error: 'Failed to load activities' }, 502, origin);
   }
 
-  const body = (await notionResponse.json()) as { results: NotionActivityPage[] };
-  const activities = body.results
-    .map(mapActivity)
-    .filter((a) => a.name && a.date);
+  let body: { results: NotionActivityPage[] };
+  let activities: ActivityListItem[];
+  try {
+    body = (await notionResponse.json()) as { results: NotionActivityPage[] };
+    activities = body.results.map(mapActivity).filter((a) => a.name && a.date);
+  } catch (err) {
+    console.error(
+      '[activities] failed to parse/map Notion response — check that "활동 일정 DB" property names and types match what the Worker expects',
+      err,
+    );
+    return jsonResponse({ error: 'Failed to load activities' }, 502, origin);
+  }
 
   console.log(`[activities] Notion returned ${body.results.length} row(s), ${activities.length} valid after mapping`);
   if (body.results.length > 0 && activities.length === 0) {
