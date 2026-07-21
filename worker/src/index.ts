@@ -2,6 +2,7 @@ export interface Env {
   NOTION_TOKEN: string;
   NOTION_DATA_SOURCE_ID: string;
   NOTION_QUIZ_DATA_SOURCE_ID: string;
+  NOTION_ACTIVITIES_DATA_SOURCE_ID: string;
   ALLOWED_ORIGIN: string;
 }
 
@@ -156,6 +157,104 @@ async function handleQuizQuery(env: Env, origin: string): Promise<Response> {
   return jsonResponse(questions, 200, origin);
 }
 
+interface NotionSelectProperty {
+  select: { name: string } | null;
+}
+interface NotionCheckboxProperty {
+  checkbox: boolean;
+}
+interface NotionTitleProperty {
+  title: { plain_text: string }[];
+}
+interface NotionRichTextProperty {
+  rich_text: { plain_text: string }[];
+}
+interface NotionDateProperty {
+  date: { start: string; end: string | null } | null;
+}
+
+interface NotionActivityPage {
+  id: string;
+  properties: {
+    '활동명': NotionTitleProperty;
+    '활동 ID': NotionRichTextProperty;
+    '공개여부': NotionCheckboxProperty;
+    '모집상태': NotionSelectProperty;
+    '활동일': NotionDateProperty;
+    '시작 시간': NotionRichTextProperty;
+    '종료 시간': NotionRichTextProperty;
+    '활동지(집결지)': NotionRichTextProperty;
+    '강도': NotionSelectProperty;
+    '하단 본문': NotionRichTextProperty;
+  };
+}
+
+interface ActivityListItem {
+  id: string;
+  activityId: string;
+  name: string;
+  status: string;
+  date: string;
+  endDate: string | null;
+  startTime: string;
+  endTime: string;
+  place: string;
+  intensity: string;
+  bottomText: string;
+}
+
+function plainText(prop: { plain_text: string }[]): string {
+  return prop.map((t) => t.plain_text).join('').trim();
+}
+
+function mapActivity(page: NotionActivityPage): ActivityListItem {
+  const props = page.properties;
+  return {
+    id: page.id,
+    activityId: plainText(props['활동 ID'].rich_text),
+    name: plainText(props['활동명'].title),
+    status: props['모집상태'].select?.name ?? '',
+    date: props['활동일'].date?.start ?? '',
+    endDate: props['활동일'].date?.end ?? null,
+    startTime: plainText(props['시작 시간'].rich_text),
+    endTime: plainText(props['종료 시간'].rich_text),
+    place: plainText(props['활동지(집결지)'].rich_text),
+    intensity: props['강도'].select?.name ?? '',
+    bottomText: plainText(props['하단 본문'].rich_text),
+  };
+}
+
+async function handleGetActivities(env: Env, origin: string): Promise<Response> {
+  const notionResponse = await fetch(
+    `https://api.notion.com/v1/data_sources/${env.NOTION_ACTIVITIES_DATA_SOURCE_ID}/query`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.NOTION_TOKEN}`,
+        'Notion-Version': '2025-09-03',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filter: { property: '공개여부', checkbox: { equals: true } },
+        sorts: [{ property: '활동일', direction: 'ascending' }],
+      }),
+    },
+  );
+
+  if (!notionResponse.ok) {
+    const detail = await notionResponse.text();
+    console.error('Notion API error', notionResponse.status, detail);
+    return jsonResponse({ error: 'Failed to load activities' }, 502, origin);
+  }
+
+  const body = (await notionResponse.json()) as { results: NotionActivityPage[] };
+  const activities = body.results
+    .map(mapActivity)
+    .filter((a) => a.name && a.date);
+
+  return jsonResponse({ activities }, 200, origin);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const origin = env.ALLOWED_ORIGIN;
@@ -168,7 +267,9 @@ export default {
     if (request.method === 'GET' && url.pathname === '/quiz') {
       return handleQuizQuery(env, origin);
     }
-
+    if (request.method === 'GET') {
+      return handleGetActivities(env, origin);
+    }
     if (request.method !== 'POST') {
       return jsonResponse({ error: 'Method Not Allowed' }, 405, origin);
     }
