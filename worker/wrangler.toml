@@ -5,6 +5,7 @@ compatibility_date = "2025-01-01"
 [vars]
 ALLOWED_ORIGIN = "https://gustj3104.github.io"
 NOTION_DATA_SOURCE_ID = "3a3def2f-ec3e-8025-8efa-000b31eabdfc"
+NOTION_QUIZ_DATA_SOURCE_ID = "3a4def2f-ec3e-80d1-82e6-000b51338121"
 
 # NOTION_TOKEN is a secret and must not be committed here.
 # Set it after deploying with:

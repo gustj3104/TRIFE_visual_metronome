@@ -52,4 +52,14 @@
      Variables에 `VITE_NOTION_PROXY_URL`을 등록하면 `deploy.yml` 빌드 시
      자동으로 주입됩니다. 값을 등록하지 않으면 신청서 제출 시 안내 오류
      메시지가 표시될 뿐, 다른 기능에는 영향이 없습니다.
+
+  ## 퀴즈 문항 → Notion "퀴즈 DB" 연동
+
+  `/trife` 퀴즈 화면(`QuizScreen`)의 문항은 같은 Cloudflare Worker의
+  `GET /quiz` 엔드포인트를 통해 Notion "퀴즈 DB"에서 불러옵니다. 비개발
+  관리자는 Notion에서 문항 행을 추가·수정하거나 `문항 순서`를 바꾸는 것만으로
+  앱에 노출되는 퀴즈를 관리할 수 있습니다 (자세한 속성 설명은
+  `worker/README.md` 참고). `VITE_NOTION_PROXY_URL`이 설정되지 않았거나
+  Notion 조회에 실패하면 앱은 코드에 내장된 기본 문항으로 자동 대체되어
+  서비스가 중단되지 않습니다.
   
