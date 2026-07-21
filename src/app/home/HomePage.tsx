@@ -130,7 +130,7 @@ function PageShell({
       </div>
 
       {/* Scrollable body */}
-      <div className="flex-1 overflow-y-auto no-scrollbar" style={{ background: C.cream, paddingLeft: 20, paddingRight: 20 }}>
+      <div className="flex-1 overflow-y-auto" style={{ background: C.cream, paddingLeft: 20, paddingRight: 20 }}>
         {children}
       </div>
 
@@ -1116,7 +1116,7 @@ export default function HomePage() {
             </div>
 
             {/* Tab content */}
-            <div className="flex-1 overflow-y-auto no-scrollbar">
+            <div className="flex-1 overflow-y-auto">
               {screen.tab === "home" && (
                 <HomeTab
                   onApply={(act) => setScreen({ id: "detail", act })}
@@ -1169,7 +1169,7 @@ export default function HomePage() {
             onBack={() => setScreen({ id: "rules", act: screen.act, pt: screen.pt, score: screen.score })}
           />
         ) : screen.id === "complete" ? (
-          <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="flex-1 overflow-y-auto">
             <CompletionScreen act={screen.act} onHome={() => setScreen({ id: "main", tab: "home" })} />
           </div>
         ) : null}
