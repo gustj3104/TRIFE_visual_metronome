@@ -127,25 +127,33 @@ function mapNotionPageToQuizQuestion(page: NotionPage): QuizQuestion | null {
 }
 
 async function handleQuizQuery(env: Env, origin: string): Promise<Response> {
-  const notionResponse = await fetch(
-    `https://api.notion.com/v1/data_sources/${env.NOTION_QUIZ_DATA_SOURCE_ID}/query`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.NOTION_TOKEN}`,
-        'Notion-Version': '2025-09-03',
-        'Content-Type': 'application/json',
+  console.log('[quiz] querying data source', env.NOTION_QUIZ_DATA_SOURCE_ID);
+
+  let notionResponse: Response;
+  try {
+    notionResponse = await fetch(
+      `https://api.notion.com/v1/data_sources/${env.NOTION_QUIZ_DATA_SOURCE_ID}/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.NOTION_TOKEN}`,
+          'Notion-Version': '2025-09-03',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filter: { property: '노출 여부', checkbox: { equals: true } },
+          sorts: [{ property: '문항 순서', direction: 'ascending' }],
+        }),
       },
-      body: JSON.stringify({
-        filter: { property: '노출 여부', checkbox: { equals: true } },
-        sorts: [{ property: '문항 순서', direction: 'ascending' }],
-      }),
-    },
-  );
+    );
+  } catch (err) {
+    console.error('[quiz] fetch to Notion threw', err);
+    return jsonResponse({ error: 'Failed to reach Notion' }, 502, origin);
+  }
 
   if (!notionResponse.ok) {
     const detail = await notionResponse.text();
-    console.error('Notion quiz query error', notionResponse.status, detail);
+    console.error('[quiz] Notion query error', notionResponse.status, detail);
     return jsonResponse({ error: 'Failed to load quiz questions' }, 502, origin);
   }
 
@@ -153,6 +161,13 @@ async function handleQuizQuery(env: Env, origin: string): Promise<Response> {
   const questions = data.results
     .map(mapNotionPageToQuizQuestion)
     .filter((q): q is QuizQuestion => q !== null);
+
+  console.log(`[quiz] Notion returned ${data.results.length} row(s), ${questions.length} valid after mapping`);
+  if (data.results.length > 0 && questions.length === 0) {
+    console.warn(
+      '[quiz] All rows were dropped by mapNotionPageToQuizQuestion — check that "질문" and "정답" (O/X) are filled in for each row.',
+    );
+  }
 
   return jsonResponse(questions, 200, origin);
 }
@@ -225,25 +240,33 @@ function mapActivity(page: NotionActivityPage): ActivityListItem {
 }
 
 async function handleGetActivities(env: Env, origin: string): Promise<Response> {
-  const notionResponse = await fetch(
-    `https://api.notion.com/v1/data_sources/${env.NOTION_ACTIVITIES_DATA_SOURCE_ID}/query`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.NOTION_TOKEN}`,
-        'Notion-Version': '2025-09-03',
-        'Content-Type': 'application/json',
+  console.log('[activities] querying data source', env.NOTION_ACTIVITIES_DATA_SOURCE_ID);
+
+  let notionResponse: Response;
+  try {
+    notionResponse = await fetch(
+      `https://api.notion.com/v1/data_sources/${env.NOTION_ACTIVITIES_DATA_SOURCE_ID}/query`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.NOTION_TOKEN}`,
+          'Notion-Version': '2025-09-03',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filter: { property: '공개여부', checkbox: { equals: true } },
+          sorts: [{ property: '활동일', direction: 'ascending' }],
+        }),
       },
-      body: JSON.stringify({
-        filter: { property: '공개여부', checkbox: { equals: true } },
-        sorts: [{ property: '활동일', direction: 'ascending' }],
-      }),
-    },
-  );
+    );
+  } catch (err) {
+    console.error('[activities] fetch to Notion threw', err);
+    return jsonResponse({ error: 'Failed to reach Notion' }, 502, origin);
+  }
 
   if (!notionResponse.ok) {
     const detail = await notionResponse.text();
-    console.error('Notion API error', notionResponse.status, detail);
+    console.error('[activities] Notion API error', notionResponse.status, detail);
     return jsonResponse({ error: 'Failed to load activities' }, 502, origin);
   }
 
@@ -251,6 +274,13 @@ async function handleGetActivities(env: Env, origin: string): Promise<Response> 
   const activities = body.results
     .map(mapActivity)
     .filter((a) => a.name && a.date);
+
+  console.log(`[activities] Notion returned ${body.results.length} row(s), ${activities.length} valid after mapping`);
+  if (body.results.length > 0 && activities.length === 0) {
+    console.warn(
+      '[activities] All rows were dropped — check that "활동명" and "활동일" are filled in for each row with "공개여부" checked.',
+    );
+  }
 
   return jsonResponse({ activities }, 200, origin);
 }
