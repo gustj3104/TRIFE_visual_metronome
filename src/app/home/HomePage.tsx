@@ -1088,7 +1088,7 @@ export default function HomePage() {
     <HomeNavContext.Provider value={() => setScreen({ id: "main", tab: "home" })}>
     <div
       className="flex items-start justify-center min-h-screen"
-      style={{ background: "#E8E4DE", fontFamily: "'Noto Sans KR', sans-serif" }}
+      style={{ background: C.cream, fontFamily: "'Noto Sans KR', sans-serif" }}
     >
       {/* Phone frame */}
       <div
