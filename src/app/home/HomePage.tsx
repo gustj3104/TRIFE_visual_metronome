@@ -2,6 +2,7 @@ import { useState, useEffect, useContext, createContext, type ReactNode } from "
 import { ImageWithFallback } from "./components/ImageWithFallback";
 import trifeLogoSrc from "./assets/trife-logo.png";
 import { submitApplication, ApplicationSubmitError } from "../lib/notionApplication";
+import { fetchQuizQuestions, QUIZ_OPTIONS, type QuizQuestion } from "../lib/notionQuiz";
 import { fetchActivities, ActivitiesFetchError, type RemoteActivity } from "../lib/notionActivities";
 import {
   ChevronLeft, ChevronRight, Check, ArrowRight,
@@ -220,12 +221,15 @@ function toActivity(remote: RemoteActivity): Activity {
 }
 
 // ─── Quiz data ────────────────────────────────────────────────────────────────
-const QUIZ = [
-  { q: "시각장애인 참가자가 어려워 보이면 먼저 팔을 잡아 안내해야 한다.", options: ["그렇다", "아니다"], correct: 1, explanation: "도움이 필요해 보이더라도 먼저 의사를 묻고, 동의를 받은 뒤 안내하는 것이 원칙입니다." },
-  { q: "TRIFE 활동 중 통증이나 어지러움이 생기면 즉시 운영진에게 알려야 한다.", options: ["그렇다", "아니다"], correct: 0, explanation: "내 몸 상태를 솔직하게 알리는 것이 나와 함께하는 모두를 안전하게 합니다." },
-  { q: "TRIFE는 비장애인이 장애인을 돕는 봉사 프로그램이다.", options: ["그렇다", "아니다"], correct: 1, explanation: "TRIFE는 봉사가 아닙니다. 장애인과 비장애인이 동료로서 함께 움직이는 커뮤니티입니다." },
-  { q: "가이드 콜사인은 활동 전에 운영진이 안내하며, 반드시 숙지해야 한다.", options: ["그렇다", "아니다"], correct: 0, explanation: "콜사인은 안전한 가이드 러닝을 위한 약속 신호입니다. 참여 전 꼭 확인하세요." },
-  { q: "참가자 동의 없이 신체 접촉을 하거나 차별적 언행을 하는 것은 TRIFE 수칙에 어긋난다.", options: ["그렇다", "아니다"], correct: 0, explanation: "모든 참가자는 동등한 존엄을 가집니다. 동의 없는 접촉과 차별적 언행은 허용되지 않습니다." },
+// Fallback shown when the Notion "퀴즈 DB" proxy isn't configured or the
+// request fails, so the quiz step never breaks. Non-dev admins normally
+// manage these questions directly in Notion (see worker/README.md).
+const DEFAULT_QUIZ: QuizQuestion[] = [
+  { id: "default-1", question: "시각장애인 참가자가 어려워 보이면 먼저 팔을 잡아 안내해야 한다.", correct: 1, explanation: "도움이 필요해 보이더라도 먼저 의사를 묻고, 동의를 받은 뒤 안내하는 것이 원칙입니다.", audience: "전체" },
+  { id: "default-2", question: "TRIFE 활동 중 통증이나 어지러움이 생기면 즉시 운영진에게 알려야 한다.", correct: 0, explanation: "내 몸 상태를 솔직하게 알리는 것이 나와 함께하는 모두를 안전하게 합니다.", audience: "전체" },
+  { id: "default-3", question: "TRIFE는 비장애인이 장애인을 돕는 봉사 프로그램이다.", correct: 1, explanation: "TRIFE는 봉사가 아닙니다. 장애인과 비장애인이 동료로서 함께 움직이는 커뮤니티입니다.", audience: "전체" },
+  { id: "default-4", question: "가이드 콜사인은 활동 전에 운영진이 안내하며, 반드시 숙지해야 한다.", correct: 0, explanation: "콜사인은 안전한 가이드 러닝을 위한 약속 신호입니다. 참여 전 꼭 확인하세요.", audience: "전체" },
+  { id: "default-5", question: "참가자 동의 없이 신체 접촉을 하거나 차별적 언행을 하는 것은 TRIFE 수칙에 어긋난다.", correct: 0, explanation: "모든 참가자는 동등한 존엄을 가집니다. 동의 없는 접촉과 차별적 언행은 허용되지 않습니다.", audience: "전체" },
 ];
 
 const RULES = [
@@ -689,21 +693,21 @@ function ParticipantTypeScreen({ onSelect, onBack }: { onSelect: (t: "new" | "re
   );
 }
 
-function QuizScreen({ onComplete, onBack }: { onComplete: (score: number) => void; onBack: () => void }) {
+function QuizScreen({ questions, onComplete, onBack }: { questions: QuizQuestion[]; onComplete: (score: number, total: number) => void; onBack: () => void }) {
   const [idx, setIdx] = useState(0);
   const [sel, setSel] = useState<number | null>(null);
   const [feedback, setFeedback] = useState(false);
   const [score, setScore] = useState(0);
-  // idx is always kept within [0, QUIZ.length) by handleNext, so this index
-  // access is safe even though QUIZ[idx] is typed as possibly undefined.
-  const q = QUIZ[idx]!;
+  // idx is always kept within [0, questions.length) by handleNext, so this
+  // index access is safe even though questions[idx] is typed as possibly undefined.
+  const q = questions[idx]!;
   const correct = sel === q.correct;
-  const total = QUIZ.length;
+  const total = questions.length;
 
   const handleNext = () => {
     if (!feedback) { setFeedback(true); setScore((s) => s + (correct ? 1 : 0)); return; }
     if (idx < total - 1) { setIdx((v) => v + 1); setSel(null); setFeedback(false); }
-    else onComplete(score + (correct ? 1 : 0));
+    else onComplete(score + (correct ? 1 : 0), total);
   };
 
   return (
@@ -734,11 +738,11 @@ function QuizScreen({ onComplete, onBack }: { onComplete: (score: number) => voi
 
         <div className="rounded-[16px] border p-4 mb-4" style={{ background: C.white, borderColor: C.border }}>
           <p className="text-xs font-bold mb-2" style={{ color: C.midGreen }}>Q{idx + 1}</p>
-          <p className="text-sm leading-[1.8] font-medium" style={{ color: C.text }}>{q.q}</p>
+          <p className="text-sm leading-[1.8] font-medium" style={{ color: C.text }}>{q.question}</p>
         </div>
 
         <div className="flex flex-col gap-2.5 mb-4" role="radiogroup" aria-label="선택지">
-          {q.options.map((opt, i) => {
+          {QUIZ_OPTIONS.map((opt, i) => {
             let bg = C.white, border = C.border, icon: ReactNode = null;
             if (feedback && sel === i) {
               bg = correct ? "#EBF3EE" : "#FEF9F0";
@@ -874,8 +878,8 @@ function RulesScreen({ onNext, onBack }: { onNext: () => void; onBack: () => voi
 interface FormData { name: string; phone: string; gender: string; district: string; dong: string; age: string; frequency: string; privacy: boolean; }
 type FormErrors = Partial<Record<keyof FormData, string>>;
 
-function FormScreen({ act, score, participantType, onComplete, onBack }: {
-  act: Activity; score: number; participantType: "new" | "returning"; onComplete: () => void; onBack: () => void;
+function FormScreen({ act, score, total, participantType, onComplete, onBack }: {
+  act: Activity; score: number; total: number; participantType: "new" | "returning"; onComplete: () => void; onBack: () => void;
 }) {
   const [form, setForm] = useState<FormData>({ name: "", phone: "", gender: "", district: "", dong: "", age: "", frequency: "", privacy: false });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -919,7 +923,7 @@ function FormScreen({ act, score, participantType, onComplete, onBack }: {
         rulesConsent: true,
         participantType: participantType === "new" ? "신규" : "기존",
         quizScore: score,
-        quizTotal: QUIZ.length,
+        quizTotal: total,
         activityName: act.name,
         activityDate: act.isoDate,
       });
@@ -1135,15 +1139,24 @@ type Screen =
   | { id: "detail"; act: Activity }
   | { id: "participant"; act: Activity }
   | { id: "quiz"; act: Activity; pt: "new" | "returning" }
-  | { id: "result"; act: Activity; pt: "new" | "returning"; score: number }
-  | { id: "rules"; act: Activity; pt: "new" | "returning"; score: number }
-  | { id: "form"; act: Activity; pt: "new" | "returning"; score: number }
+  | { id: "result"; act: Activity; pt: "new" | "returning"; score: number; total: number }
+  | { id: "rules"; act: Activity; pt: "new" | "returning"; score: number; total: number }
+  | { id: "form"; act: Activity; pt: "new" | "returning"; score: number; total: number }
   | { id: "complete"; act: Activity };
 
 export default function HomePage() {
   const [screen, setScreen] = useState<Screen>({ id: "main", tab: "home" });
+  const [quiz, setQuiz] = useState<QuizQuestion[]>(DEFAULT_QUIZ);
   const [activities, setActivities] = useState<Activity[] | null>(null);
   const [activitiesError, setActivitiesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchQuizQuestions().then((fetched) => {
+      if (!cancelled && fetched) setQuiz(fetched);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1171,6 +1184,15 @@ export default function HomePage() {
   }, [screen.id]);
 
   const isMain = screen.id === "main";
+
+  // Questions targeted at "전체" always show; "신규"/"기존" only show to the
+  // matching participant type. Falls back to the full set if a misconfigured
+  // audience filter would otherwise leave no questions.
+  const quizFor = (pt: "new" | "returning"): QuizQuestion[] => {
+    const audience = pt === "new" ? "신규" : "기존";
+    const filtered = quiz.filter((q) => q.audience === "전체" || q.audience === audience);
+    return filtered.length > 0 ? filtered : quiz;
+  };
 
   return (
     <HomeNavContext.Provider value={() => setScreen({ id: "main", tab: "home" })}>
@@ -1239,28 +1261,30 @@ export default function HomePage() {
           />
         ) : screen.id === "quiz" ? (
           <QuizScreen
-            onComplete={(score) => setScreen({ id: "result", act: screen.act, pt: screen.pt, score })}
+            questions={quizFor(screen.pt)}
+            onComplete={(score, total) => setScreen({ id: "result", act: screen.act, pt: screen.pt, score, total })}
             onBack={() => setScreen({ id: "participant", act: screen.act })}
           />
         ) : screen.id === "result" ? (
           <QuizResultScreen
             score={screen.score}
-            total={QUIZ.length}
-            onNext={() => setScreen({ id: "rules", act: screen.act, pt: screen.pt, score: screen.score })}
+            total={screen.total}
+            onNext={() => setScreen({ id: "rules", act: screen.act, pt: screen.pt, score: screen.score, total: screen.total })}
             onBack={() => setScreen({ id: "quiz", act: screen.act, pt: screen.pt })}
           />
         ) : screen.id === "rules" ? (
           <RulesScreen
-            onNext={() => setScreen({ id: "form", act: screen.act, pt: screen.pt, score: screen.score })}
-            onBack={() => setScreen({ id: "result", act: screen.act, pt: screen.pt, score: screen.score })}
+            onNext={() => setScreen({ id: "form", act: screen.act, pt: screen.pt, score: screen.score, total: screen.total })}
+            onBack={() => setScreen({ id: "result", act: screen.act, pt: screen.pt, score: screen.score, total: screen.total })}
           />
         ) : screen.id === "form" ? (
           <FormScreen
             act={screen.act}
             score={screen.score}
+            total={screen.total}
             participantType={screen.pt}
             onComplete={() => setScreen({ id: "complete", act: screen.act })}
-            onBack={() => setScreen({ id: "rules", act: screen.act, pt: screen.pt, score: screen.score })}
+            onBack={() => setScreen({ id: "rules", act: screen.act, pt: screen.pt, score: screen.score, total: screen.total })}
           />
         ) : screen.id === "complete" ? (
           <div className="flex-1 overflow-y-auto">
