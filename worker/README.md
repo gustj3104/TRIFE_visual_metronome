@@ -69,6 +69,23 @@ npm run deploy
 URL이 출력됩니다. 이 URL을 프론트엔드 빌드 시 `VITE_NOTION_PROXY_URL` 환경
 변수로 전달해야 신청서 제출이 Notion에 기록됩니다 (루트 `README.md` 참고).
 
+## CI에서 자동 배포하기
+
+위 수동 배포는 최초 1회만 하면 되고, 이후 `worker/` 코드를 수정한 뒤 `main`에
+푸시하면 `.github/workflows/deploy-worker.yml`이 자동으로
+`wrangler deploy`를 실행합니다. 매번 로컬에서 `wrangler deploy`를 직접 칠
+필요가 없습니다. (`wrangler secret put NOTION_TOKEN`으로 등록한 시크릿은
+Cloudflare 쪽에 그대로 남아있으므로 재배포해도 다시 등록할 필요 없습니다.)
+
+이 워크플로가 동작하려면 저장소 **Settings → Secrets and variables →
+Actions → Secrets**에 아래 2개를 등록해야 합니다:
+
+- `CLOUDFLARE_API_TOKEN` — [Cloudflare 대시보드 → My Profile → API Tokens →
+  Create Token](https://dash.cloudflare.com/profile/api-tokens)에서 **Edit
+  Cloudflare Workers** 템플릿으로 생성.
+- `CLOUDFLARE_ACCOUNT_ID` — Cloudflare 대시보드 Workers & Pages 개요 페이지
+  우측에서 확인 가능한 Account ID.
+
 ## 설정값
 
 `wrangler.toml`에 정의된 값:
