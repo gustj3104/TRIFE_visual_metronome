@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, useContext, createContext, type ReactNode } from "react";
 import { ImageWithFallback } from "./components/ImageWithFallback";
 import trifeLogoSrc from "./assets/trife-logo.png";
 import { submitApplication, ApplicationSubmitError } from "../lib/notionApplication";
@@ -23,8 +23,11 @@ const C = {
 };
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
+const HomeNavContext = createContext<(() => void) | null>(null);
+
 function TrifeLogo({ size = 32 }: { size?: number }) {
-  return (
+  const goHome = useContext(HomeNavContext);
+  const content = (
     <div className="flex items-center gap-2">
       <ImageWithFallback
         src={trifeLogoSrc}
@@ -35,6 +38,19 @@ function TrifeLogo({ size = 32 }: { size?: number }) {
         TRIFE
       </span>
     </div>
+  );
+
+  if (!goHome) return content;
+
+  return (
+    <button
+      type="button"
+      onClick={goHome}
+      className="focus:outline-none focus-visible:ring-2 rounded-lg"
+      aria-label="홈으로 이동"
+    >
+      {content}
+    </button>
   );
 }
 
@@ -1008,9 +1024,14 @@ function FField({ label, error, children }: { label: string; error?: string | un
 function CompletionScreen({ act, onHome }: { act: Activity; onHome: () => void }) {
   return (
     <div className="flex flex-col min-h-full items-center justify-center px-5 py-12 text-center" style={{ fontFamily: "'Noto Sans KR', sans-serif", background: C.cream }}>
-      <div className="w-20 h-20 mb-4">
+      <button
+        type="button"
+        onClick={onHome}
+        className="w-20 h-20 mb-4 focus:outline-none focus-visible:ring-2 rounded-lg"
+        aria-label="홈으로 이동"
+      >
         <ImageWithFallback src={trifeLogoSrc} alt="TRIFE 로고" className="w-full h-full object-contain" />
-      </div>
+      </button>
       <div className="w-11 h-11 rounded-full flex items-center justify-center mb-4" style={{ background: "#EBF3EE" }}>
         <CheckCircle2 size={22} style={{ color: C.darkGreen }} />
       </div>
@@ -1064,6 +1085,7 @@ export default function HomePage() {
   const isMain = screen.id === "main";
 
   return (
+    <HomeNavContext.Provider value={() => setScreen({ id: "main", tab: "home" })}>
     <div
       className="flex items-start justify-center min-h-screen"
       style={{ background: "#E8E4DE", fontFamily: "'Noto Sans KR', sans-serif" }}
@@ -1089,11 +1111,8 @@ export default function HomePage() {
           // Main shell with top bar + tabs
           <>
             {/* App header */}
-            <div className="shrink-0 border-b px-4 h-14 flex items-center justify-between" style={{ background: "rgba(249,244,238,0.97)", backdropFilter: "blur(12px)", borderColor: C.border }}>
+            <div className="shrink-0 border-b px-4 h-14 flex items-center" style={{ background: "rgba(249,244,238,0.97)", backdropFilter: "blur(12px)", borderColor: C.border }}>
               <TrifeLogo size={32} />
-              <span className="text-xs font-medium px-3 py-1.5 rounded-full" style={{ background: C.olive, color: C.darkGreen }}>
-                2026년 8월
-              </span>
             </div>
 
             {/* Tab content */}
@@ -1156,5 +1175,6 @@ export default function HomePage() {
         ) : null}
       </div>
     </div>
+    </HomeNavContext.Provider>
   );
 }
