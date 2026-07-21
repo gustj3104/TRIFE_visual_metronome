@@ -77,8 +77,10 @@ URL이 출력됩니다. 이 URL을 프론트엔드 빌드 시 `VITE_NOTION_PROXY
 필요가 없습니다. (`wrangler secret put NOTION_TOKEN`으로 등록한 시크릿은
 Cloudflare 쪽에 그대로 남아있으므로 재배포해도 다시 등록할 필요 없습니다.)
 
-이 워크플로가 동작하려면 저장소 **Settings → Secrets and variables →
-Actions → Secrets**에 아래 2개를 등록해야 합니다:
+이 워크플로가 동작하려면 저장소 **Settings → Environments → `github-pages`
+→ Environment secrets**에 아래 2개를 등록해야 합니다. (`deploy-worker.yml`의
+job이 `environment: github-pages`를 참조하도록 되어 있으므로, Repository
+secrets가 아니라 반드시 이 Environment 아래에 등록해야 인식됩니다.)
 
 - `CLOUDFLARE_API_TOKEN` — [Cloudflare 대시보드 → My Profile → API Tokens →
   Create Token](https://dash.cloudflare.com/profile/api-tokens)에서 **Edit
