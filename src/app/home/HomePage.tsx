@@ -221,6 +221,11 @@ function toActivity(remote: RemoteActivity): Activity {
   };
 }
 
+function isSameYearMonth(isoDate: string, ref: Date): boolean {
+  const d = new Date(`${isoDate}T00:00:00`);
+  return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
+}
+
 // ─── Quiz data ────────────────────────────────────────────────────────────────
 // Fallback shown when the Notion "퀴즈 DB" proxy isn't configured or the
 // request fails, so the quiz step never breaks. Non-dev admins normally
@@ -344,6 +349,8 @@ function HomeTab({ activities, loadError, onApply, onSchedule }: {
   activities: Activity[] | null; loadError: string | null;
   onApply: (a: Activity) => void; onSchedule: () => void;
 }) {
+  const thisMonthActivities = activities?.filter((act) => isSameYearMonth(act.isoDate, new Date())) ?? null;
+
   return (
     <div style={{ fontFamily: "'Noto Sans KR', sans-serif" }}>
       {/* Hero */}
@@ -442,12 +449,12 @@ function HomeTab({ activities, loadError, onApply, onSchedule }: {
         <div className="flex flex-col gap-3">
           {loadError ? (
             <ActivitiesError message={loadError} />
-          ) : activities === null ? (
+          ) : thisMonthActivities === null ? (
             <ActivitiesLoading />
-          ) : activities.length === 0 ? (
+          ) : thisMonthActivities.length === 0 ? (
             <ActivitiesEmpty />
           ) : (
-            activities.slice(0, 1).map((act) => (
+            thisMonthActivities.slice(0, 1).map((act) => (
               <MiniCard key={act.id} act={act} onApply={onApply} />
             ))
           )}
@@ -514,25 +521,34 @@ function MiniCard({ act, onApply }: { act: Activity; onApply: (a: Activity) => v
 function ScheduleTab({ activities, loadError, onApply }: {
   activities: Activity[] | null; loadError: string | null; onApply: (a: Activity) => void;
 }) {
+  const today = new Date();
+  const [month, setMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const monthLabel = `${month.getFullYear()}년 ${month.getMonth() + 1}월`;
+
+  const goPrevMonth = () => setMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  const goNextMonth = () => setMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+
+  const monthActivities = activities?.filter((act) => isSameYearMonth(act.isoDate, month)) ?? null;
+
   return (
     <div className="px-4 py-5" style={{ fontFamily: "'Noto Sans KR', sans-serif" }}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-bold text-lg" style={{ color: C.text }}>활동 일정</h2>
         <div className="flex items-center gap-2">
-          <button className="w-7 h-7 rounded-full border flex items-center justify-center" style={{ borderColor: C.border }} aria-label="이전 달"><ChevronLeft size={14} style={{ color: C.sub }} /></button>
-          <span className="text-xs font-semibold" style={{ color: C.text }}>2026년 8월</span>
-          <button className="w-7 h-7 rounded-full border flex items-center justify-center" style={{ borderColor: C.border }} aria-label="다음 달"><ChevronRight size={14} style={{ color: C.sub }} /></button>
+          <button onClick={goPrevMonth} className="w-7 h-7 rounded-full border flex items-center justify-center" style={{ borderColor: C.border }} aria-label="이전 달"><ChevronLeft size={14} style={{ color: C.sub }} /></button>
+          <span className="text-xs font-semibold" style={{ color: C.text }}>{monthLabel}</span>
+          <button onClick={goNextMonth} className="w-7 h-7 rounded-full border flex items-center justify-center" style={{ borderColor: C.border }} aria-label="다음 달"><ChevronRight size={14} style={{ color: C.sub }} /></button>
         </div>
       </div>
       <div className="flex flex-col gap-4">
         {loadError ? (
           <ActivitiesError message={loadError} />
-        ) : activities === null ? (
+        ) : monthActivities === null ? (
           <ActivitiesLoading />
-        ) : activities.length === 0 ? (
+        ) : monthActivities.length === 0 ? (
           <ActivitiesEmpty />
         ) : (
-          activities.map((act) => <FullActivityCard key={act.id} act={act} onApply={onApply} />)
+          monthActivities.map((act) => <FullActivityCard key={act.id} act={act} onApply={onApply} />)
         )}
       </div>
     </div>
