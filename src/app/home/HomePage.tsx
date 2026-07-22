@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Check, ArrowRight,
   MapPin, Clock, Zap, AlertCircle, CheckCircle2,
   Users, Heart, Shield, ChevronDown, Instagram, Home,
-  Loader2, Calendar, Info, X,
+  Loader2, Calendar, Info, X, Compass, ShieldCheck,
 } from "lucide-react";
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
@@ -238,6 +238,41 @@ const RULES = [
   { icon: <Shield size={16} />, text: "가이드 콜사인과 운영진의 안전 안내를 따릅니다." },
   { icon: <AlertCircle size={16} />, text: "통증, 어지러움, 불편함이 생기면 즉시 알립니다." },
   { icon: <CheckCircle2 size={16} />, text: "동의 없는 신체 접촉과 차별적 언행을 하지 않습니다." },
+];
+
+const CORE_VALUES = [
+  {
+    icon: <Users size={16} />,
+    title: "함께 움직이기",
+    paragraphs: [
+      "장애 유무와 관계없이 같은 시간과 공간에서 달리고 운동합니다.",
+      "함께한 경험이 서로를 이해하는 계기가 되고, 더 많은 사람이 움직임의 즐거움에 참여할 수 있는 환경을 만들어갑니다.",
+    ],
+  },
+  {
+    icon: <Heart size={16} />,
+    title: "서로의 방식 존중하기",
+    paragraphs: [
+      "사람마다 편안한 속도와 필요한 도움, 소통하는 방식은 다릅니다.",
+      "TRIFE는 도움을 먼저 가정하지 않고 당사자의 의사를 묻고, 각자의 속도와 선택을 존중하며 가장 잘 맞는 움직임의 방식을 함께 찾아갑니다.",
+    ],
+  },
+  {
+    icon: <ShieldCheck size={16} />,
+    title: "안전하게 연결되기",
+    paragraphs: [
+      "안전은 자유롭게 움직이기 위한 출발점입니다.",
+      "테더와 콜사인, 충분한 사전 소통과 안전 수칙을 바탕으로 누구나 서로를 신뢰하며 움직일 수 있는 환경을 만듭니다.",
+    ],
+  },
+  {
+    icon: <Compass size={16} />,
+    title: "자유의 영역 넓히기",
+    paragraphs: [
+      "같은 길을 함께 달린 경험은 익숙한 길과 새로운 선택을 늘려갑니다.",
+      "TRIFE는 단순히 안전하게 운동하는 것을 넘어, 누구나 원하는 곳에서 마음껏 움직일 수 있도록 각자의 세계와 활동 반경을 함께 넓혀갑니다.",
+    ],
+  },
 ];
 
 // ─── Bottom nav tabs ──────────────────────────────────────────────────────────
@@ -548,10 +583,16 @@ function AboutTab() {
             style={{ background: C.sage, transform: "translate(30%, -30%)" }} />
           <p className="text-xs font-semibold mb-3" style={{ color: C.sage }}>TRIFE 소개</p>
           <h2 className="font-bold text-xl leading-snug mb-3 text-white">
-            누군가를 돕는 사람이 아니라,<br />함께 움직이는 동료로
+            혼자 달릴 때는 몰랐던,<br />연결된 리듬
           </h2>
           <p className="text-xs leading-[1.8]" style={{ color: C.sage }}>
-            TRIFE는 봉사활동이 아닙니다. 장애 유무와 관계없이 서로의 속도와 의사 표현을 존중하며, 같이 운동하고 관계를 만들어가는 커뮤니티입니다.
+            TRIFE는 시각장애인과 비시각장애인이 함께 달리고 운동하며, 누구나 자유롭게 움직일 수 있는 경험을 넓혀가는 포용적 웰니스 커뮤니티입니다.
+          </p>
+          <p className="text-xs leading-[1.8] mt-3" style={{ color: C.sage }}>
+            가이드러닝을 시작으로 서로의 속도와 감각, 의사 표현을 나누며 함께 움직이는 방법을 찾아갑니다. 누군가를 일방적으로 돕는 관계가 아니라, 서로에게 페이스가 되고 감각을 빌려주며 앞서거나 뒤따르지 않고 나란히 움직이는 동료 관계를 지향합니다.
+          </p>
+          <p className="text-xs leading-[1.8] mt-3" style={{ color: C.sage }}>
+            같이 움직이는 일은 누군가에게는 즐거운 선택이 되고, 누군가에게는 새로운 길에 발을 내딛는 시작이 됩니다. TRIFE는 안전을 출발점으로 삼아, 함께 움직인 거리만큼 각자가 선택할 수 있는 길과 활동의 영역을 넓혀갑니다.
           </p>
         </div>
         <div className="flex border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
@@ -575,23 +616,25 @@ function AboutTab() {
         </div>
       </div>
 
-      {/* Values */}
-      <h3 className="font-bold text-sm mb-3" style={{ color: C.text }}>TRIFE의 가치</h3>
+      {/* Core values */}
+      <h3 className="font-bold text-sm mb-3" style={{ color: C.text }}>TRIFE의 핵심 가치</h3>
       <div className="flex flex-col gap-3 mb-6">
-        {[
-          { icon: <Users size={16} />, title: "함께 움직이기", desc: "장애 유무와 관계없이 같은 시간, 같은 공간에서 달리고 운동합니다." },
-          { icon: <Heart size={16} />, title: "서로의 방식 존중하기", desc: "각자의 속도와 의사 표현을 존중하며 누구도 배제되지 않습니다." },
-          { icon: <Shield size={16} />, title: "안전하게 연결되기", desc: "안전 수칙과 가이드 콜사인으로 신뢰할 수 있는 환경을 만들어 갑니다." },
-        ].map((v, i) => (
+        {CORE_VALUES.map((v, i) => (
           <div key={i} className="flex gap-3 p-4 rounded-[16px] border" style={{ background: C.white, borderColor: C.border }}>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.olive, color: C.darkGreen }}>{v.icon}</div>
             <div>
-              <p className="font-semibold text-sm mb-0.5" style={{ color: C.text }}>{v.title}</p>
-              <p className="text-xs leading-[1.7]" style={{ color: C.sub }}>{v.desc}</p>
+              <p className="font-semibold text-sm mb-1" style={{ color: C.text }}>{v.title}</p>
+              {v.paragraphs.map((para, j) => (
+                <p key={j} className={`text-xs leading-[1.7] ${j > 0 ? "mt-2" : ""}`} style={{ color: C.sub }}>{para}</p>
+              ))}
             </div>
           </div>
         ))}
       </div>
+
+      <p className="text-center text-sm font-semibold leading-relaxed mb-6" style={{ color: C.darkGreen }}>
+        앞서 가는 일이 아니라, 나란히 가는 일.
+      </p>
 
       {/* Instagram CTA */}
       <a href="https://instagram.com" target="_blank" rel="noopener noreferrer"
