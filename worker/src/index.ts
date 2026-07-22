@@ -207,7 +207,6 @@ interface NotionActivityPage {
     '종료 시간': NotionRichTextProperty;
     '활동지(집결지)': NotionRichTextProperty;
     '강도': NotionSelectProperty;
-    '하단 본문': NotionRichTextProperty;
   };
 }
 
@@ -222,7 +221,7 @@ interface ActivityListItem {
   endTime: string;
   place: string;
   intensity: string;
-  bottomText: string;
+  detailMarkdown: string;
 }
 
 function plainText(prop: { plain_text: string }[] | undefined): string {
@@ -252,8 +251,162 @@ function mapActivity(page: NotionActivityPage): ActivityListItem {
     endTime: plainText(props['종료 시간']?.rich_text),
     place: plainText(props['활동지(집결지)']?.rich_text),
     intensity: selectName(props['강도']),
-    bottomText: plainText(props['하단 본문']?.rich_text),
+    detailMarkdown: '',
   };
+}
+
+// ─── Page content → Markdown ────────────────────────────────────────────────
+// The "안내" (guide) text shown for each activity is no longer a database
+// property. Instead it's whatever the admin writes as the body of the
+// activity's Notion page, so we walk the page's block children and render
+// them as Markdown for the frontend to display.
+
+interface NotionRichTextSpan {
+  plain_text: string;
+  href: string | null;
+  annotations: {
+    bold: boolean;
+    italic: boolean;
+    strikethrough: boolean;
+    underline: boolean;
+    code: boolean;
+  };
+}
+
+interface NotionBlock {
+  id: string;
+  type: string;
+  has_children: boolean;
+  paragraph?: { rich_text: NotionRichTextSpan[] };
+  heading_1?: { rich_text: NotionRichTextSpan[] };
+  heading_2?: { rich_text: NotionRichTextSpan[] };
+  heading_3?: { rich_text: NotionRichTextSpan[] };
+  bulleted_list_item?: { rich_text: NotionRichTextSpan[] };
+  numbered_list_item?: { rich_text: NotionRichTextSpan[] };
+  to_do?: { rich_text: NotionRichTextSpan[]; checked: boolean };
+  quote?: { rich_text: NotionRichTextSpan[] };
+  callout?: { rich_text: NotionRichTextSpan[]; icon?: { type: string; emoji?: string } | null };
+  code?: { rich_text: NotionRichTextSpan[]; language: string };
+  image?: { type: string; external?: { url: string }; file?: { url: string } };
+}
+
+function richTextArrayToMarkdown(spans: NotionRichTextSpan[] | undefined): string {
+  return (spans ?? [])
+    .map((span) => {
+      let text = span.plain_text;
+      if (!text) return '';
+      if (span.annotations.code) text = `\`${text}\``;
+      if (span.annotations.bold) text = `**${text}**`;
+      if (span.annotations.italic) text = `*${text}*`;
+      if (span.annotations.strikethrough) text = `~~${text}~~`;
+      if (span.href) text = `[${text}](${span.href})`;
+      return text;
+    })
+    .join('');
+}
+
+async function fetchBlockChildren(blockId: string, env: Env): Promise<NotionBlock[]> {
+  const blocks: NotionBlock[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const url = new URL(`https://api.notion.com/v1/blocks/${blockId}/children`);
+    url.searchParams.set('page_size', '100');
+    if (cursor) url.searchParams.set('start_cursor', cursor);
+
+    const res = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${env.NOTION_TOKEN}`,
+        'Notion-Version': '2025-09-03',
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch blocks for ${blockId}: ${res.status}`);
+    }
+
+    const data = (await res.json()) as {
+      results: NotionBlock[];
+      has_more: boolean;
+      next_cursor: string | null;
+    };
+    blocks.push(...data.results);
+    cursor = data.has_more && data.next_cursor ? data.next_cursor : undefined;
+  } while (cursor);
+
+  return blocks;
+}
+
+async function blocksToMarkdown(blocks: NotionBlock[], env: Env, indent = ''): Promise<string> {
+  const lines: string[] = [];
+  let numberedIndex = 0;
+
+  for (const block of blocks) {
+    if (block.type !== 'numbered_list_item') numberedIndex = 0;
+
+    let line = '';
+    switch (block.type) {
+      case 'paragraph':
+        line = richTextArrayToMarkdown(block.paragraph?.rich_text);
+        break;
+      case 'heading_1':
+        line = `# ${richTextArrayToMarkdown(block.heading_1?.rich_text)}`;
+        break;
+      case 'heading_2':
+        line = `## ${richTextArrayToMarkdown(block.heading_2?.rich_text)}`;
+        break;
+      case 'heading_3':
+        line = `### ${richTextArrayToMarkdown(block.heading_3?.rich_text)}`;
+        break;
+      case 'bulleted_list_item':
+        line = `- ${richTextArrayToMarkdown(block.bulleted_list_item?.rich_text)}`;
+        break;
+      case 'numbered_list_item':
+        numberedIndex += 1;
+        line = `${numberedIndex}. ${richTextArrayToMarkdown(block.numbered_list_item?.rich_text)}`;
+        break;
+      case 'to_do':
+        line = `- [${block.to_do?.checked ? 'x' : ' '}] ${richTextArrayToMarkdown(block.to_do?.rich_text)}`;
+        break;
+      case 'quote':
+        line = `> ${richTextArrayToMarkdown(block.quote?.rich_text)}`;
+        break;
+      case 'callout': {
+        const emoji = block.callout?.icon?.emoji ? `${block.callout.icon.emoji} ` : '';
+        line = `> ${emoji}${richTextArrayToMarkdown(block.callout?.rich_text)}`;
+        break;
+      }
+      case 'code': {
+        const language = block.code?.language ?? '';
+        const text = richTextArrayToMarkdown(block.code?.rich_text);
+        line = `\`\`\`${language}\n${text}\n\`\`\``;
+        break;
+      }
+      case 'divider':
+        line = '---';
+        break;
+      case 'image': {
+        const url = block.image?.type === 'external' ? block.image.external?.url : block.image?.file?.url;
+        line = url ? `![](${url})` : '';
+        break;
+      }
+      default:
+        break;
+    }
+    if (line) lines.push(`${indent}${line}`);
+
+    if (block.has_children) {
+      const childBlocks = await fetchBlockChildren(block.id, env);
+      const childMarkdown = await blocksToMarkdown(childBlocks, env, `${indent}  `);
+      if (childMarkdown) lines.push(childMarkdown);
+    }
+  }
+
+  return lines.join('\n\n');
+}
+
+async function fetchPageMarkdown(pageId: string, env: Env): Promise<string> {
+  const blocks = await fetchBlockChildren(pageId, env);
+  return blocksToMarkdown(blocks, env);
 }
 
 async function handleGetActivities(env: Env, origin: string): Promise<Response> {
@@ -307,7 +460,19 @@ async function handleGetActivities(env: Env, origin: string): Promise<Response> 
     );
   }
 
-  return jsonResponse({ activities }, 200, origin);
+  const activitiesWithDetail = await Promise.all(
+    activities.map(async (activity) => {
+      try {
+        const detailMarkdown = await fetchPageMarkdown(activity.id, env);
+        return { ...activity, detailMarkdown };
+      } catch (err) {
+        console.error(`[activities] failed to load page content for "${activity.name}" (${activity.id})`, err);
+        return activity;
+      }
+    }),
+  );
+
+  return jsonResponse({ activities: activitiesWithDetail }, 200, origin);
 }
 
 export default {

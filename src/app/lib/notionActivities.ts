@@ -9,7 +9,7 @@ export interface RemoteActivity {
   endTime: string;
   place: string;
   intensity: string;
-  bottomText: string;
+  detailMarkdown: string;
 }
 
 export class ActivitiesFetchError extends Error {}

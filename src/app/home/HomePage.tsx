@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, createContext, type ReactNode } from "react";
+import ReactMarkdown, { type Components } from "react-markdown";
 import { ImageWithFallback } from "./components/ImageWithFallback";
 import trifeLogoSrc from "./assets/trife-logo.png";
 import { submitApplication, ApplicationSubmitError } from "../lib/notionApplication";
@@ -178,7 +179,7 @@ function StatusBadge({ status }: { status: Status }) {
 interface Activity {
   id: string; activityId: string; date: string; isoDate: string; dayLabel: string;
   month: string; weekLabel: string; name: string; time: string; place: string;
-  status: Status; intensity: string; detail: string;
+  status: Status; intensity: string; detailMarkdown: string;
 }
 
 const STATUS_MAP: Record<string, Status> = {
@@ -216,7 +217,7 @@ function toActivity(remote: RemoteActivity): Activity {
     place: remote.place,
     status: STATUS_MAP[remote.status] ?? "closed",
     intensity: remote.intensity,
-    detail: remote.bottomText,
+    detailMarkdown: remote.detailMarkdown,
   };
 }
 
@@ -603,6 +604,39 @@ function AboutTab() {
   );
 }
 
+// ─── Activity guide markdown ────────────────────────────────────────────────
+const GUIDE_MARKDOWN_COMPONENTS: Components = {
+  p: ({ children }) => <p className="text-sm leading-[1.8] mb-2 last:mb-0" style={{ color: C.sub }}>{children}</p>,
+  strong: ({ children }) => <strong style={{ color: C.text }}>{children}</strong>,
+  a: ({ children, href }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="underline" style={{ color: C.darkGreen }}>
+      {children}
+    </a>
+  ),
+  h1: ({ children }) => <p className="text-sm font-bold mt-3 mb-1.5 first:mt-0" style={{ color: C.text }}>{children}</p>,
+  h2: ({ children }) => <p className="text-sm font-bold mt-3 mb-1.5 first:mt-0" style={{ color: C.text }}>{children}</p>,
+  h3: ({ children }) => <p className="text-sm font-bold mt-3 mb-1.5 first:mt-0" style={{ color: C.text }}>{children}</p>,
+  ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1 text-sm leading-[1.8]" style={{ color: C.sub }}>{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1 text-sm leading-[1.8]" style={{ color: C.sub }}>{children}</ol>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-l-2 pl-3 mb-2 text-sm leading-[1.8] italic" style={{ borderColor: C.border, color: C.sub }}>
+      {children}
+    </blockquote>
+  ),
+  code: ({ children }) => (
+    <code className="px-1 py-0.5 rounded text-xs font-mono" style={{ background: C.cream, color: C.text }}>{children}</code>
+  ),
+  pre: ({ children }) => (
+    <pre className="p-3 rounded-lg text-xs font-mono overflow-x-auto mb-2" style={{ background: C.cream, color: C.text }}>{children}</pre>
+  ),
+  hr: () => <hr className="my-3" style={{ borderColor: C.border }} />,
+  img: ({ src, alt }) => <img src={src} alt={alt ?? ""} className="rounded-lg mb-2 max-w-full" />,
+};
+
+function ActivityGuideMarkdown({ markdown }: { markdown: string }) {
+  return <ReactMarkdown components={GUIDE_MARKDOWN_COMPONENTS}>{markdown}</ReactMarkdown>;
+}
+
 // ─── Flow screens ─────────────────────────────────────────────────────────────
 function ActivityDetailScreen({ act, onNext, onBack }: { act: Activity; onNext: () => void; onBack: () => void }) {
   return (
@@ -638,10 +672,10 @@ function ActivityDetailScreen({ act, onNext, onBack }: { act: Activity; onNext: 
           </div>
         </div>
 
-        {act.detail && (
+        {act.detailMarkdown && (
           <div className="mb-5">
             <p className="text-xs font-bold mb-1.5" style={{ color: C.darkGreen }}>안내</p>
-            <p className="text-sm leading-[1.8]" style={{ color: C.sub }}>{act.detail}</p>
+            <ActivityGuideMarkdown markdown={act.detailMarkdown} />
           </div>
         )}
       </div>
