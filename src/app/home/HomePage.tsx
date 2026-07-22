@@ -8,7 +8,7 @@ import {
   ChevronLeft, ChevronRight, Check, ArrowRight,
   MapPin, Clock, Zap, AlertCircle, CheckCircle2,
   Users, Heart, Shield, ChevronDown, Instagram, Home,
-  Loader2, Calendar, Info, X, Compass, MessageCircle, ShieldCheck,
+  Loader2, Calendar, Info, X, Compass, ShieldCheck,
 } from "lucide-react";
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
@@ -242,48 +242,36 @@ const RULES = [
 
 const CORE_VALUES = [
   {
-    icon: <Compass size={16} />,
-    title: "함께 움직이며 가능성을 넓히기",
-    paragraphs: [
-      "같이 움직이는 경험은 누군가에게 즐거운 선택이 되고, 누군가에게는 새로운 길에 발을 내딛는 시작이 됩니다.",
-      "같이 달린 거리만큼 익숙한 길과 경험이 늘어나고, 각자가 자유롭게 움직일 수 있는 영역도 함께 넓어집니다.",
-    ],
-  },
-  {
-    icon: <MessageCircle size={16} />,
-    title: "서로의 감각과 방식을 존중하기",
-    paragraphs: [
-      "TRIFE는 정해진 하나의 방식에 사람을 맞추지 않습니다.",
-      "어떤 속도가 편한지, 어떤 말이 잘 통하는지, 어떤 도움이 필요한지 먼저 묻고 함께 조율합니다. 서로의 감각을 빌리되, 각자의 선택과 의사를 존중합니다.",
-    ],
-  },
-  {
-    icon: <ShieldCheck size={16} />,
-    title: "안전을 넘어 자유로 나아가기",
-    paragraphs: [
-      "안전은 함께 움직이기 위한 출발점입니다.",
-      "TRIFE가 만들고 싶은 것은 단지 사고 없이 운동하는 환경이 아니라, 누구나 원하는 곳에서 마음껏 움직이고 새로운 길을 선택할 수 있는 경험입니다.",
-    ],
-  },
-  {
     icon: <Users size={16} />,
     title: "함께 움직이기",
-    paragraphs: ["장애 유무와 관계없이 같은 시간과 공간에서 움직이며 서로의 가능성을 넓혀갑니다."],
+    paragraphs: [
+      "장애 유무와 관계없이 같은 시간과 공간에서 달리고 운동합니다.",
+      "함께한 경험이 서로를 이해하는 계기가 되고, 더 많은 사람이 움직임의 즐거움에 참여할 수 있는 환경을 만들어갑니다.",
+    ],
   },
   {
     icon: <Heart size={16} />,
     title: "서로의 방식 존중하기",
-    paragraphs: ["도움을 먼저 가정하지 않고, 각자의 속도와 감각, 의사를 묻고 존중합니다."],
+    paragraphs: [
+      "사람마다 편안한 속도와 필요한 도움, 소통하는 방식은 다릅니다.",
+      "TRIFE는 도움을 먼저 가정하지 않고 당사자의 의사를 묻고, 각자의 속도와 선택을 존중하며 가장 잘 맞는 움직임의 방식을 함께 찾아갑니다.",
+    ],
   },
   {
-    icon: <Shield size={16} />,
+    icon: <ShieldCheck size={16} />,
     title: "안전하게 연결되기",
-    paragraphs: ["테더와 충분한 소통을 바탕으로 서로를 신뢰할 수 있는 환경을 만듭니다."],
+    paragraphs: [
+      "안전은 자유롭게 움직이기 위한 출발점입니다.",
+      "테더와 콜사인, 충분한 사전 소통과 안전 수칙을 바탕으로 누구나 서로를 신뢰하며 움직일 수 있는 환경을 만듭니다.",
+    ],
   },
   {
-    icon: <ArrowRight size={16} />,
+    icon: <Compass size={16} />,
     title: "자유의 영역 넓히기",
-    paragraphs: ["같이 움직인 경험이 더 많은 길과 선택으로 이어지도록 각자의 활동 반경을 함께 넓혀갑니다."],
+    paragraphs: [
+      "같은 길을 함께 달린 경험은 익숙한 길과 새로운 선택을 늘려갑니다.",
+      "TRIFE는 단순히 안전하게 운동하는 것을 넘어, 누구나 원하는 곳에서 마음껏 움직일 수 있도록 각자의 세계와 활동 반경을 함께 넓혀갑니다.",
+    ],
   },
 ];
 
@@ -598,10 +586,13 @@ function AboutTab() {
             혼자 달릴 때는 몰랐던,<br />연결된 리듬
           </h2>
           <p className="text-xs leading-[1.8]" style={{ color: C.sage }}>
-            TRIFE는 시각장애인과 비시각장애인이 함께 달리고 운동하며, 서로의 움직임을 넓혀가는 포용적 웰니스 커뮤니티입니다.
+            TRIFE는 시각장애인과 비시각장애인이 함께 달리고 운동하며, 누구나 자유롭게 움직일 수 있는 경험을 넓혀가는 포용적 웰니스 커뮤니티입니다.
           </p>
           <p className="text-xs leading-[1.8] mt-3" style={{ color: C.sage }}>
-            가이드러닝을 시작으로 각자의 속도와 감각, 의사 표현을 나누며 함께 움직이는 방법을 찾아갑니다. 누군가를 일방적으로 돕는 관계가 아니라, 서로에게 페이스가 되고 동료가 되어 나란히 나아갑니다.
+            가이드러닝을 시작으로 서로의 속도와 감각, 의사 표현을 나누며 함께 움직이는 방법을 찾아갑니다. 누군가를 일방적으로 돕는 관계가 아니라, 서로에게 페이스가 되고 감각을 빌려주며 앞서거나 뒤따르지 않고 나란히 움직이는 동료 관계를 지향합니다.
+          </p>
+          <p className="text-xs leading-[1.8] mt-3" style={{ color: C.sage }}>
+            같이 움직이는 일은 누군가에게는 즐거운 선택이 되고, 누군가에게는 새로운 길에 발을 내딛는 시작이 됩니다. TRIFE는 안전을 출발점으로 삼아, 함께 움직인 거리만큼 각자가 선택할 수 있는 길과 활동의 영역을 넓혀갑니다.
           </p>
         </div>
         <div className="flex border-t" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
@@ -626,7 +617,7 @@ function AboutTab() {
       </div>
 
       {/* Core values */}
-      <h3 className="font-bold text-sm mb-3" style={{ color: C.text }}>핵심 가치</h3>
+      <h3 className="font-bold text-sm mb-3" style={{ color: C.text }}>TRIFE의 핵심 가치</h3>
       <div className="flex flex-col gap-3 mb-6">
         {CORE_VALUES.map((v, i) => (
           <div key={i} className="flex gap-3 p-4 rounded-[16px] border" style={{ background: C.white, borderColor: C.border }}>
