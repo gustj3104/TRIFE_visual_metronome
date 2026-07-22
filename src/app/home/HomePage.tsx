@@ -226,6 +226,22 @@ function isSameYearMonth(isoDate: string, ref: Date): boolean {
   return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
 }
 
+// Prefers an activity still open for registration this month; if none is
+// open this month, falls back to one opening for registration next month;
+// otherwise falls back to this month's earliest activity regardless of status.
+function pickFeaturedActivity(activities: Activity[], ref: Date): Activity | null {
+  const thisMonth = activities.filter((act) => isSameYearMonth(act.isoDate, ref));
+  const available = thisMonth.find((act) => act.status === "available");
+  if (available) return available;
+
+  const nextMonthRef = new Date(ref.getFullYear(), ref.getMonth() + 1, 1);
+  const nextMonth = activities.filter((act) => isSameYearMonth(act.isoDate, nextMonthRef));
+  const upcoming = nextMonth.find((act) => act.status === "upcoming");
+  if (upcoming) return upcoming;
+
+  return thisMonth[0] ?? null;
+}
+
 // ─── Quiz data ────────────────────────────────────────────────────────────────
 // Fallback shown when the Notion "퀴즈 DB" proxy isn't configured or the
 // request fails, so the quiz step never breaks. Non-dev admins normally
@@ -349,7 +365,7 @@ function HomeTab({ activities, loadError, onApply, onSchedule }: {
   activities: Activity[] | null; loadError: string | null;
   onApply: (a: Activity) => void; onSchedule: () => void;
 }) {
-  const thisMonthActivities = activities?.filter((act) => isSameYearMonth(act.isoDate, new Date())) ?? null;
+  const featuredActivity = activities ? pickFeaturedActivity(activities, new Date()) : null;
 
   return (
     <div style={{ fontFamily: "'Noto Sans KR', sans-serif" }}>
@@ -449,14 +465,12 @@ function HomeTab({ activities, loadError, onApply, onSchedule }: {
         <div className="flex flex-col gap-3">
           {loadError ? (
             <ActivitiesError message={loadError} />
-          ) : thisMonthActivities === null ? (
+          ) : activities === null ? (
             <ActivitiesLoading />
-          ) : thisMonthActivities.length === 0 ? (
+          ) : featuredActivity === null ? (
             <ActivitiesEmpty />
           ) : (
-            thisMonthActivities.slice(0, 1).map((act) => (
-              <MiniCard key={act.id} act={act} onApply={onApply} />
-            ))
+            <MiniCard key={featuredActivity.id} act={featuredActivity} onApply={onApply} />
           )}
         </div>
       </div>
