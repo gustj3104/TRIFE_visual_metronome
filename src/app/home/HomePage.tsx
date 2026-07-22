@@ -240,7 +240,7 @@ const RULES = [
   { icon: <CheckCircle2 size={16} />, text: "동의 없는 신체 접촉과 차별적 언행을 하지 않습니다." },
 ];
 
-const PHILOSOPHY = [
+const CORE_VALUES = [
   {
     icon: <Compass size={16} />,
     title: "함께 움직이며 가능성을 넓히기",
@@ -265,13 +265,26 @@ const PHILOSOPHY = [
       "TRIFE가 만들고 싶은 것은 단지 사고 없이 운동하는 환경이 아니라, 누구나 원하는 곳에서 마음껏 움직이고 새로운 길을 선택할 수 있는 경험입니다.",
     ],
   },
-];
-
-const CORE_VALUES = [
-  { icon: <Users size={16} />, title: "함께 움직이기", desc: "장애 유무와 관계없이 같은 시간과 공간에서 움직이며 서로의 가능성을 넓혀갑니다." },
-  { icon: <Heart size={16} />, title: "서로의 방식 존중하기", desc: "도움을 먼저 가정하지 않고, 각자의 속도와 감각, 의사를 묻고 존중합니다." },
-  { icon: <Shield size={16} />, title: "안전하게 연결되기", desc: "테더와 충분한 소통을 바탕으로 서로를 신뢰할 수 있는 환경을 만듭니다." },
-  { icon: <Compass size={16} />, title: "자유의 영역 넓히기", desc: "같이 움직인 경험이 더 많은 길과 선택으로 이어지도록 각자의 활동 반경을 함께 넓혀갑니다." },
+  {
+    icon: <Users size={16} />,
+    title: "함께 움직이기",
+    paragraphs: ["장애 유무와 관계없이 같은 시간과 공간에서 움직이며 서로의 가능성을 넓혀갑니다."],
+  },
+  {
+    icon: <Heart size={16} />,
+    title: "서로의 방식 존중하기",
+    paragraphs: ["도움을 먼저 가정하지 않고, 각자의 속도와 감각, 의사를 묻고 존중합니다."],
+  },
+  {
+    icon: <Shield size={16} />,
+    title: "안전하게 연결되기",
+    paragraphs: ["테더와 충분한 소통을 바탕으로 서로를 신뢰할 수 있는 환경을 만듭니다."],
+  },
+  {
+    icon: <ArrowRight size={16} />,
+    title: "자유의 영역 넓히기",
+    paragraphs: ["같이 움직인 경험이 더 많은 길과 선택으로 이어지도록 각자의 활동 반경을 함께 넓혀갑니다."],
+  },
 ];
 
 // ─── Bottom nav tabs ──────────────────────────────────────────────────────────
@@ -612,31 +625,17 @@ function AboutTab() {
         </div>
       </div>
 
-      {/* Philosophy */}
-      <h3 className="font-bold text-sm mb-3" style={{ color: C.text }}>TRIFE의 철학</h3>
-      <div className="flex flex-col gap-3 mb-6">
-        {PHILOSOPHY.map((p, i) => (
-          <div key={i} className="flex gap-3 p-4 rounded-[16px] border" style={{ background: C.white, borderColor: C.border }}>
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.olive, color: C.darkGreen }}>{p.icon}</div>
-            <div>
-              <p className="font-semibold text-sm mb-1" style={{ color: C.text }}>{p.title}</p>
-              {p.paragraphs.map((para, j) => (
-                <p key={j} className={`text-xs leading-[1.7] ${j > 0 ? "mt-2" : ""}`} style={{ color: C.sub }}>{para}</p>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Core values */}
-      <h3 className="font-bold text-sm mb-3" style={{ color: C.text }}>핵심 가치 문구</h3>
+      <h3 className="font-bold text-sm mb-3" style={{ color: C.text }}>핵심 가치</h3>
       <div className="flex flex-col gap-3 mb-6">
         {CORE_VALUES.map((v, i) => (
           <div key={i} className="flex gap-3 p-4 rounded-[16px] border" style={{ background: C.white, borderColor: C.border }}>
             <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.olive, color: C.darkGreen }}>{v.icon}</div>
             <div>
-              <p className="font-semibold text-sm mb-0.5" style={{ color: C.text }}>{v.title}</p>
-              <p className="text-xs leading-[1.7]" style={{ color: C.sub }}>{v.desc}</p>
+              <p className="font-semibold text-sm mb-1" style={{ color: C.text }}>{v.title}</p>
+              {v.paragraphs.map((para, j) => (
+                <p key={j} className={`text-xs leading-[1.7] ${j > 0 ? "mt-2" : ""}`} style={{ color: C.sub }}>{para}</p>
+              ))}
             </div>
           </div>
         ))}
