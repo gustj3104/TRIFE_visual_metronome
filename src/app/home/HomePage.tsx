@@ -402,19 +402,19 @@ function HomeTab({ activities, loadError, onApply, onSchedule }: {
             style={{ background: C.white, border: `1px solid ${C.border}`, position: "relative", zIndex: 10, marginTop: 20 }}
           >
             <p
-              className="leading-[2.0] text-sm font-semibold mb-4"
-              style={{ color: C.darkGreen }}
+              className="leading-[2.0] font-semibold mb-4"
+              style={{ color: C.darkGreen, fontSize: "18.2px" }}
             >
               조금씩 더 넓어지는 일—
             </p>
             <p className="leading-[2.0] text-sm" style={{ color: C.sub }}>
-              시각장애인과 비시각장애인이 함께 달리고 운동하는 포용적 웰니스 커뮤니티, TRIFE입니다.
+              시각장애인과 비시각장애인이 함께 달리고 운동하는<br />포용적 웰니스 커뮤니티, TRIFE입니다.
             </p>
             <p className="leading-[2.0] text-sm mt-4" style={{ color: C.sub }}>
-              누군가에게는 '함께 뛰는 것'이 조금 더 큰 의미가 돼요.
+              누군가에게는 '함께 뛰는 것'이<br />조금 더 의미가 돼요.
             </p>
             <p className="leading-[2.0] text-sm mt-4" style={{ color: C.sub }}>
-              우리는 언제든 원하는 곳에서 마음껏 움직일 수 있는 자유를 같이 넓혀보려고 합니다.
+              우리는 언제든 원하는 곳에서 마음껏 움직일 수 있는 자유를<br />같이 넓혀보려고 합니다.
             </p>
           </div>
         </div>
