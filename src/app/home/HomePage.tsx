@@ -439,6 +439,15 @@ function HomeTab({ activities, loadError, onApply, onSchedule }: {
           ))}
         </div>
       </div>
+
+      {/* Instagram CTA */}
+      <div className="px-5 pb-8">
+        <a href="https://www.instagram.com/withtrife/" target="_blank" rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full py-4 rounded-[14px] border font-semibold text-sm min-h-[52px] transition-opacity hover:opacity-80"
+          style={{ borderColor: C.border, color: C.text }}>
+          <Instagram size={16} /> @withtrife 인스타그램
+        </a>
+      </div>
     </div>
   );
 }
