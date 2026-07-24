@@ -12,3 +12,16 @@ NOTION_CONTACT_DATA_SOURCE_ID = "3a7def2f-ec3e-8069-879d-000b7a0f2e06"
 # NOTION_TOKEN is a secret and must not be committed here.
 # Set it after deploying with:
 #   wrangler secret put NOTION_TOKEN
+
+# Enabled from the Cloudflare dashboard while debugging the /contact 404
+# (integration not shared with the "TRIFE 인바운드" data source). Mirrored
+# here so a future `wrangler deploy` from CI doesn't silently reset it.
+[observability]
+enabled = false
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+persist = true
+head_sampling_rate = 1
