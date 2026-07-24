@@ -5,25 +5,14 @@ import trifeLogoSrc from "./assets/trife-logo.png";
 import { submitApplication, ApplicationSubmitError } from "../lib/notionApplication";
 import { fetchQuizQuestions, QUIZ_OPTIONS, type QuizQuestion } from "../lib/notionQuiz";
 import { fetchActivities, ActivitiesFetchError, type RemoteActivity } from "../lib/notionActivities";
+import { ContactActionSection } from "./components/ContactActionSection";
+import { TRIFE_COLORS as C } from "./theme";
 import {
   ChevronLeft, ChevronRight, Check, ArrowRight,
   MapPin, Clock, Zap, AlertCircle, CheckCircle2,
   Users, Heart, Shield, ChevronDown, Instagram, Home,
   Loader2, Calendar, Info, X, Compass, ShieldCheck,
 } from "lucide-react";
-
-// ─── Brand tokens ─────────────────────────────────────────────────────────────
-const C = {
-  darkGreen: "#345F45",
-  midGreen: "#789B73",
-  sage: "#B8C6A1",
-  olive: "#D7D9C2",
-  cream: "#F9F4EE",
-  text: "#24352A",
-  sub: "#667069",
-  border: "#D9DED5",
-  white: "#FFFFFF",
-};
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 const HomeNavContext = createContext<(() => void) | null>(null);
@@ -475,27 +464,8 @@ function HomeTab({ activities, loadError, onApply, onSchedule }: {
         </div>
       </div>
 
-      {/* Values */}
-      <div className="px-5 pb-8">
-        <h2 className="font-bold text-base mb-4" style={{ color: C.text }}>TRIFE는 이런 커뮤니티예요</h2>
-        <div className="flex flex-col gap-3">
-          {[
-            { icon: <Users size={16} />, title: "함께 움직이기", desc: "장애 유무와 관계없이 같은 공간에서 달리고 운동합니다." },
-            { icon: <Heart size={16} />, title: "서로의 방식 존중하기", desc: "각자의 속도와 의사 표현을 존중하며 함께합니다." },
-            { icon: <Shield size={16} />, title: "안전하게 연결되기", desc: "안전 수칙과 콜사인으로 신뢰할 수 있는 커뮤니티를 만듭니다." },
-          ].map((v, i) => (
-            <div key={i} className="flex items-start gap-3 p-4 rounded-[16px] border" style={{ background: C.white, borderColor: C.border }}>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: C.olive, color: C.darkGreen }}>
-                {v.icon}
-              </div>
-              <div>
-                <p className="font-semibold text-sm mb-0.5" style={{ color: C.text }}>{v.title}</p>
-                <p className="text-xs leading-[1.7]" style={{ color: C.sub }}>{v.desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Connect */}
+      <ContactActionSection />
     </div>
   );
 }
