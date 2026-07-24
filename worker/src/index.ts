@@ -3,6 +3,7 @@ export interface Env {
   NOTION_DATA_SOURCE_ID: string;
   NOTION_QUIZ_DATA_SOURCE_ID: string;
   NOTION_ACTIVITIES_DATA_SOURCE_ID: string;
+  NOTION_CONTACT_DATA_SOURCE_ID: string;
   ALLOWED_ORIGIN: string;
 }
 
@@ -78,6 +79,91 @@ function buildNotionProperties(payload: ApplicationPayload) {
     '활동명 스냅숏': { rich_text: [{ text: { content: payload.activityName } }] },
     '활동 날짜 스냅숏': { date: { start: payload.activityDate } },
   };
+}
+
+// ─── /contact — "TRIFE와 연결하기" 활동 제안 / 문의 / 협업 제안 → Notion "TRIFE 인바운드" DB ──
+
+type ContactCategory = '활동 제안' | '문의' | '협업 제안';
+
+interface ContactPayload {
+  category: ContactCategory;
+  name: string;
+  contact: string;
+  title: string;
+  body: string;
+}
+
+// The DB's "유형" select options have no space; the client sends the
+// spaced label shown in the product spec. Map one to the other here so
+// the client contract can stay unaware of the Notion schema's naming.
+const CONTACT_CATEGORY_TO_NOTION: Record<ContactCategory, string> = {
+  '활동 제안': '활동제안',
+  '문의': '문의',
+  '협업 제안': '협업제안',
+};
+
+const EMAIL_RE = /^\S+@\S+\.\S+$/;
+
+function validateContact(payload: Partial<ContactPayload>): string | null {
+  if (!payload.category || !(payload.category in CONTACT_CATEGORY_TO_NOTION)) return 'category is invalid';
+  if (!payload.name || typeof payload.name !== 'string' || !payload.name.trim()) return 'name is required';
+  if (!payload.contact || typeof payload.contact !== 'string' || !payload.contact.trim()) return 'contact is required';
+  if (!payload.title || typeof payload.title !== 'string' || !payload.title.trim()) return 'title is required';
+  if (!payload.body || typeof payload.body !== 'string' || !payload.body.trim()) return 'body is required';
+  return null;
+}
+
+function buildContactProperties(payload: ContactPayload) {
+  const categoryLabel = CONTACT_CATEGORY_TO_NOTION[payload.category];
+  const contact = payload.contact.trim();
+  const contactProperty = EMAIL_RE.test(contact)
+    ? { '이메일': { email: contact } }
+    : { '연락처': { phone_number: contact } };
+
+  return {
+    '내부 식별자': { title: [{ text: { content: `[${categoryLabel}] ${payload.title.trim()}` } }] },
+    '제목': { rich_text: [{ text: { content: payload.title.trim() } }] },
+    '본문': { rich_text: [{ text: { content: payload.body.trim() } }] },
+    '작성자': { rich_text: [{ text: { content: payload.name.trim() } }] },
+    '유형': { select: { name: categoryLabel } },
+    '상태': { status: { name: '시작 전' } },
+    ...contactProperty,
+  };
+}
+
+async function handleContactSubmit(request: Request, env: Env, origin: string): Promise<Response> {
+  let payload: Partial<ContactPayload>;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Invalid JSON body' }, 400, origin);
+  }
+
+  const validationError = validateContact(payload);
+  if (validationError) {
+    return jsonResponse({ error: validationError }, 400, origin);
+  }
+
+  const notionResponse = await fetch('https://api.notion.com/v1/pages', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.NOTION_TOKEN}`,
+      'Notion-Version': '2025-09-03',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      parent: { type: 'data_source_id', data_source_id: env.NOTION_CONTACT_DATA_SOURCE_ID },
+      properties: buildContactProperties(payload as ContactPayload),
+    }),
+  });
+
+  if (!notionResponse.ok) {
+    const detail = await notionResponse.text();
+    console.error('[contact] Notion API error', notionResponse.status, detail);
+    return jsonResponse({ error: 'Failed to record contact submission' }, 502, origin);
+  }
+
+  return jsonResponse({ ok: true }, 200, origin);
 }
 
 interface QuizQuestion {
@@ -489,6 +575,9 @@ export default {
     }
     if (request.method === 'GET') {
       return handleGetActivities(env, origin);
+    }
+    if (request.method === 'POST' && url.pathname === '/contact') {
+      return handleContactSubmit(request, env, origin);
     }
     if (request.method !== 'POST') {
       return jsonResponse({ error: 'Method Not Allowed' }, 405, origin);
