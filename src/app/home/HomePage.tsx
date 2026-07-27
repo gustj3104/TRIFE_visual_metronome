@@ -182,7 +182,17 @@ const ORDINAL_LABELS = ["첫째", "둘째", "셋째", "넷째", "다섯째"];
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const MONTH_LABELS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-function toActivity(remote: RemoteActivity): Activity {
+function toISODateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+// Once an activity's date has passed, it's auto-closed regardless of the
+// status an admin set in Notion — a forgotten manual update should never
+// leave a past activity looking open for registration.
+function toActivity(remote: RemoteActivity, todayIso: string): Activity {
   const parsed = new Date(`${remote.date}T00:00:00`);
   const dayOfMonth = String(parsed.getDate());
   const dayLabel = DAY_LABELS[parsed.getDay()] ?? "";
@@ -192,6 +202,9 @@ function toActivity(remote: RemoteActivity): Activity {
   const time = remote.startTime && remote.endTime
     ? `${remote.startTime}–${remote.endTime}`
     : remote.startTime || remote.endTime;
+  const mappedStatus = STATUS_MAP[remote.status] ?? "closed";
+  const status: Status =
+    remote.date < todayIso && mappedStatus !== "cancelled" ? "closed" : mappedStatus;
 
   return {
     id: remote.id,
@@ -204,7 +217,7 @@ function toActivity(remote: RemoteActivity): Activity {
     name: remote.name,
     time,
     place: remote.place,
-    status: STATUS_MAP[remote.status] ?? "closed",
+    status,
     intensity: remote.intensity,
     detailMarkdown: remote.detailMarkdown,
   };
@@ -217,16 +230,21 @@ function isSameYearMonth(isoDate: string, ref: Date): boolean {
 
 // Prefers an activity still open for registration this month; if none is
 // open this month, falls back to one opening for registration next month;
-// otherwise falls back to this month's earliest activity regardless of status.
+// otherwise falls back to this month's earliest still-upcoming activity.
+// Activities whose date has already passed are never shown on the home
+// screen, so the next scheduled activity takes their place.
 function pickFeaturedActivity(activities: Activity[], ref: Date): Activity | null {
-  const thisMonth = activities.filter((act) => isSameYearMonth(act.isoDate, ref));
+  const todayIso = toISODateString(ref);
+  const upcoming = activities.filter((act) => act.isoDate >= todayIso);
+
+  const thisMonth = upcoming.filter((act) => isSameYearMonth(act.isoDate, ref));
   const available = thisMonth.find((act) => act.status === "available");
   if (available) return available;
 
   const nextMonthRef = new Date(ref.getFullYear(), ref.getMonth() + 1, 1);
-  const nextMonth = activities.filter((act) => isSameYearMonth(act.isoDate, nextMonthRef));
-  const upcoming = nextMonth.find((act) => act.status === "upcoming");
-  if (upcoming) return upcoming;
+  const nextMonth = upcoming.filter((act) => isSameYearMonth(act.isoDate, nextMonthRef));
+  const nextMonthUpcoming = nextMonth.find((act) => act.status === "upcoming");
+  if (nextMonthUpcoming) return nextMonthUpcoming;
 
   return thisMonth[0] ?? null;
 }
@@ -1240,7 +1258,8 @@ export default function HomePage() {
     fetchActivities()
       .then((remote) => {
         if (cancelled) return;
-        setActivities(remote.map(toActivity));
+        const todayIso = toISODateString(new Date());
+        setActivities(remote.map((r) => toActivity(r, todayIso)));
       })
       .catch((err) => {
         if (cancelled) return;
