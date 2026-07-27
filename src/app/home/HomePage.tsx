@@ -228,25 +228,20 @@ function isSameYearMonth(isoDate: string, ref: Date): boolean {
   return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
 }
 
-// Prefers an activity still open for registration this month; if none is
-// open this month, falls back to one opening for registration next month;
-// otherwise falls back to this month's earliest still-upcoming activity.
-// Activities whose date has already passed are never shown on the home
-// screen, so the next scheduled activity takes their place.
+// Shows the earliest upcoming activity that's open for registration; if
+// none is open yet, falls back to the earliest one still scheduled to
+// open. Never falls back to a closed/cancelled activity, and activities
+// whose date has already passed are excluded outright.
 function pickFeaturedActivity(activities: Activity[], ref: Date): Activity | null {
   const todayIso = toISODateString(ref);
-  const upcoming = activities.filter((act) => act.isoDate >= todayIso);
+  const upcoming = activities
+    .filter((act) => act.isoDate >= todayIso)
+    .sort((a, b) => a.isoDate.localeCompare(b.isoDate));
 
-  const thisMonth = upcoming.filter((act) => isSameYearMonth(act.isoDate, ref));
-  const available = thisMonth.find((act) => act.status === "available");
+  const available = upcoming.find((act) => act.status === "available");
   if (available) return available;
 
-  const nextMonthRef = new Date(ref.getFullYear(), ref.getMonth() + 1, 1);
-  const nextMonth = upcoming.filter((act) => isSameYearMonth(act.isoDate, nextMonthRef));
-  const nextMonthUpcoming = nextMonth.find((act) => act.status === "upcoming");
-  if (nextMonthUpcoming) return nextMonthUpcoming;
-
-  return thisMonth[0] ?? null;
+  return upcoming.find((act) => act.status === "upcoming") ?? null;
 }
 
 // ─── Quiz data ────────────────────────────────────────────────────────────────
